@@ -47,7 +47,7 @@ IF found = true  DELETEPATH(DebugLog).
     log2file("################################################################################").
     log2file("|                              KERBAL HUD SYSTEM                               |").
     log2file("|                              BY  FUZZYMEEP TWO                               |").
-    log2file("|                                VERSION 1.01                                  |").
+    log2file("|                                VERSION 1.02                                  |").
     log2file("|___________________________________LOADING____________________________________|").
     log2file("################################################################################").
  }
@@ -316,7 +316,7 @@ function desktop{
     if i = 0 or i = 17 set po to "################################################################################".
     if i = 8           set po to "|                              KERBAL HUD SYSTEM                               |".
     if i = 9           set po to "|                              BY  FUZZYMEEP TWO                               |".
-    if i = 10          set po to "|                                VERSION 1.01                                  |".
+    if i = 10          set po to "|                                VERSION 1.02                                  |".
     if i = 15          set po to "|___________________________________LOADING____________________________________|".
     print po at (0,i).
 }}
