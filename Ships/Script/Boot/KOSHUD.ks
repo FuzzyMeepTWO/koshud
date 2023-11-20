@@ -32,10 +32,11 @@ global loadattempts to 0.
 local cnt to 0.
 LIST PROCESSORS IN coreList.
 for i in corelist {if i:TAG = "" set i:TAG to "C"+cnt. set cnt to cnt+1.}
-global SubDirSV IS "ShipAutoSV/".                         //directory for auto option save
+global proot is "0:/". //path():root. 
+global SubDirSV IS proot+"ShipAutoSV/".                   //directory for auto option save
 global Autofile is ship:name+"-"+core:tag+".json".        //filename for auto option save
 global AutofileBAK is ship:name+"-"+core:tag+".bak.json". //filename for BKP option save
-global DebugLog to "KosHud.log".                          //filename for log file.
+global DebugLog to "0:/KosHud.log".                       //filename for log file.
 local fileList is list().
 local found is false.
 list files in fileList.
@@ -46,7 +47,7 @@ IF found = true  DELETEPATH(DebugLog).
     log2file("################################################################################").
     log2file("|                              KERBAL HUD SYSTEM                               |").
     log2file("|                              BY  FUZZYMEEP TWO                               |").
-    log2file("|                                VERSION 1.00                                  |").
+    log2file("|                                VERSION 1.01                                  |").
     log2file("|___________________________________LOADING____________________________________|").
     log2file("################################################################################").
  }
@@ -315,7 +316,7 @@ function desktop{
     if i = 0 or i = 17 set po to "################################################################################".
     if i = 8           set po to "|                              KERBAL HUD SYSTEM                               |".
     if i = 9           set po to "|                              BY  FUZZYMEEP TWO                               |".
-    if i = 10          set po to "|                                VERSION 1.00                                  |".
+    if i = 10          set po to "|                                VERSION 1.01                                  |".
     if i = 15          set po to "|___________________________________LOADING____________________________________|".
     print po at (0,i).
 }}
@@ -6281,15 +6282,16 @@ function BootLoopFix{
     }
 function file_exists{
   parameter fileName is " ".
-
-   IF PATH() = "Archive:/" IF NOT exists(SubDirSV) CREATEDIR(SubDirSV).
+  cd(proot).
+  IF NOT exists(SubDirSV) CREATEDIR(SubDirSV).
   if filename <> "" {
       cd(SubDirSV).
       local fileList is list().
       local found is false.
       list files in fileList.
       for file in fileList {if file = fileName set found to true.}
-      cd().
+      //cd(proot).
+      if dbglog > 0 log2file("    FILE EXIST?: "+fileName + ": "+found).
     return found.
   }
 }
