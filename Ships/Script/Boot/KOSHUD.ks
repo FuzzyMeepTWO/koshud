@@ -2,6 +2,16 @@ global boottime to time:seconds.
 global debug to 0. // shows input and output for triggered item. use for checking which modules are called for failed trigger. logging is better.
 global dbglog to 0. // 0 = OFF 1 = LOG  2= Detailed Log 3 = advanced LOG WITH METER/FUEL CHECK AND STARTUP SPAM (you probably dont want 3)
 //#region NOTES
+//Next update plans
+  //check list comp values
+  // light settings
+  // add abort
+  //add smart parts
+
+//adding xtra items, why
+//lock 2 in list auto settings
+// rsc name in lsit auto settings
+
 // things to fix
   //check how it handles docking
   //check if 2 vehicles same docking
@@ -42,12 +52,13 @@ local found is false.
 list files in fileList.
 for file in fileList {if file = DebugLog set found to true.}
 IF found = true  DELETEPATH(DebugLog).
+IF exists(DebugLog) DELETEPATH(DebugLog).
 
  if DbgLog > 0 {
     log2file("################################################################################").
     log2file("|                              KERBAL HUD SYSTEM                               |").
     log2file("|                              BY  FUZZYMEEP TWO                               |").
-    log2file("|                                VERSION 1.02                                  |").
+    log2file("|                                VERSION 1.03                                  |").
     log2file("|___________________________________LOADING____________________________________|").
     log2file("################################################################################").
  }
@@ -70,6 +81,7 @@ global widthlim to 80.
 global dctnmode to 0.
 GLOBAL STPREV TO "".
 GLOBAL BOTPREV TO "".
+GLOBAL linklock to 0.
 global setdelay to 0.
 global Curdelay to 0.
 global HDItm to 1.
@@ -96,6 +108,8 @@ GLOBAL HLIM TO HLIMSTRT.
 global plimadj to 0.
 global ln14 to 0.
 global flyadj to list(0,0,0,0,0,0,0).
+global AgState to list(AG1,ag2,ag3,ag4,ag5,ag6,ag7,ag8,ag9,ag10).
+global AgSPrev to AgState:copy.
 global ALTPRV to ship:altitude.
 GLOBAL VSPDPRV TO SHIP:verticalspeed.
 GLOBAL SPDPRV TO SHIP:VELOCITY:SURFACE:MAG.
@@ -175,10 +189,10 @@ global  FindCl to lexicon("GREEN","").
         FindCl:add("RRN","[#ff6200]").
         FindCl:add("YGR","[#c8ff00]").
         FindCl:add("GRN","[#00ff00]").
-global  FindCl2 to lexicon("  DELETE  ","ORN"," TRANSMIT ","WHT", " SET TRGT ", "WHT"," DPST RSC ","WHT","SPRNG AUTO","GRN","SPRNG MAN ","GRN", " RUN TEST ","WHT","  EXTEND  ","CYN","  DEPLOY  ","CYN","  RETRACT ","RED"," LIGHT OFF","ORN"," LIGHT ON ","WHT"," MODE OFF ","YLW"," MODE ON  ","PRP","   FIRE   ","ORN"). 
+global  FindCl2 to lexicon(" TURN ON  ", "RED", " TURN OFF ","CYN","  DELETE  ","ORN"," TRANSMIT ","WHT", " SET TRGT ", "WHT"," DPST RSC ","WHT","SPRNG AUTO","GRN","SPRNG MAN ","GRN", " RUN TEST ","WHT","  EXTEND  ","CYN","  DEPLOY  ","CYN","  RETRACT ","RED"," LIGHT OFF","ORN"," LIGHT ON ","WHT"," MODE OFF ","YLW"," MODE ON  ","PRP","   FIRE   ","ORN"). 
 global actnlist to list(1,"","","","").
 Global biomecur to "UNKNOWN".
-global trimwords to list("Experiment","Sina","-MLEM","-MGS","-MGC","#LOC_AA_","_title","title", "DISPENSER").
+global trimwords to list("Experiment","Sina","-MLEM","-MGS","-MGC","#LOC_AA_","_title","title", "DISPENSER", "Flight Computer").
 //global trimwords2 to list("idle","percent").
 global MODESHRT TO lIST(15, " OFF", " SPD"," ALT"," AGL"," EC "," RSC ","THRT","PRES", " SUN","TEMP","GRAV"," ACC"," TWR","STAT","FUEL"). 
 GLOBAL MODELONG TO LIST(15,"    OFF   ","   SPEED  "," ALTITUDE "," ALT AGL  ","ELEC. CHRG"," RESOURCE "," THROTTLE "," PRESSURE ","   SUN    ","   TEMP   ","  GRAVITY ","  ACCEL.  ","   TWR    ","  STATUS  ","   FUEL   ").
@@ -207,8 +221,9 @@ set AGMod to list("Action Group"  ," ACTN GRP ","").
 set FlyMod to list("Flight Control","FLGHT CTRL","").
 set CntrlMod to list("control srf", "CNTRL SURF","ModuleControlSurface","SyncModuleControlSurface", "ModuleAeroSurface").
 set CntrlModAlt to CntrlMod:sublist(2,CntrlMod:length).
-set engMod to list("Engines"      , " ENGINES  ","MultiModeEngines","ModuleEnginesFX","ModuleEngines").// (name, name for hud, module1, module2)
+set engMod to list("Engines"      , " ENGINES  ","MultiModeEngines","ModuleEnginesFX","ModuleEngines","FSengineBladed").// (name, name for hud, module1, module2)
 set engModAlt to engMod:sublist(2,engMod:length).
+set INTMod to list("Intake"       , "  INTAKES ","ModuleResourceIntake").
 set dcpMod to list("Decoupler"    , "DECOUPLERS","ModuleDecouple","ModuleAnchoredDecoupler","ModuleAnchoredDecouplerBdb").
 set DcpModAlt to dcpMod:sublist(2,dcpMod:length).
 set gearMod to list("Gear"        , "   GEAR   ","ModuleWheelDeployment", "ModuleAnimateGeneric").
@@ -306,7 +321,7 @@ IF not (DEFINED monitorselected) {setmonvis().}else{IF monitorselected = 0 setmo
 IF NOT (DEFINED setupdone){loadship().}ELSE{
   IF QUICKREBOOT > 0 {IF file_exists(autofile){loadAutoSettings().}}ELSE {loadship().}}
 HudFuction().
-    if loadbkp = 2 { set LNstp to 1. set line to 1. DESKTOP(). loadship(). HudFuction().}
+    if loadbkp = 2 { set LNstp to 1. set line to 1. DESKTOP(). loadship(0). HudFuction().}
 //#endregion
 //#region Ship Setup
 function desktop{
@@ -316,7 +331,7 @@ function desktop{
     if i = 0 or i = 17 set po to "################################################################################".
     if i = 8           set po to "|                              KERBAL HUD SYSTEM                               |".
     if i = 9           set po to "|                              BY  FUZZYMEEP TWO                               |".
-    if i = 10          set po to "|                                VERSION 1.02                                  |".
+    if i = 10          set po to "|                                VERSION 1.03                                  |".
     if i = 15          set po to "|___________________________________LOADING____________________________________|".
     print po at (0,i).
 }}
@@ -343,6 +358,7 @@ Function LoadShip{
     set FlyTag to makelists(FlyMod,"FlyTag").
     set CntrlTag to makelists(CntrlMod,"CntrlTag").
     set engtag to makelists(engMod,"engtag").
+    set IntTag to makelists(INTmod,"IntTag").
     set dcptag to makelists(dcpMod,"dcptag").
     set geartag to makelists(gearMod,"geartag").
     set chutetag to makelists(chuteMod,"chutetag").
@@ -371,8 +387,6 @@ Function LoadShip{
     //OTHER MODS
     set CapTag to makelists(CapMod,"CapTag").
     //BDA MOD (KEEP LAST TO MAAKE WMGR QUICKLY ACCESSABLE)
-  // set Missiletag to makelists(MissileMod,"set").
-  // set Guntag to makelists(GunMod,"set").
     set BDPtag to makelists(BDPMod,"BDPtag").
     set CMtag to makelists(CMMod,"CMtag").
     set Radartag to makelists(RadarMod,"Radartag").
@@ -390,7 +404,7 @@ Function LoadShip{
     }
     if runop <> 0{
       //set GrpdspList[flytag][1] to 1.
-      if AutoDspList[0]:length = 1 addlist().
+      if AutoDspList[0]:length < itemlist:length  addlist().
       printrow(GetColor("Checking Part Availability.","YLW",0)).partcheck(pc). loadbar().
       if dcptag <> 0{printrow(GetColor("Checking Decoupler Parts.","ylw",0)). DcpGauges(prtTagList[dcptag]).} loadbar().
       printrow(GetColor("Setting Auto Triggers.","WHT",0)).SetAutoTriggers(2). loadbar(). 
@@ -403,7 +417,7 @@ Function LoadShip{
       print "#" at (i,16).
     IF FASTBOOT = 0 wait.01.
     }
-      if AutoDspList[0]:length = 1 addlist().
+      if AutoDspList[0]:length < itemlist:length  addlist().
       global setupdone to 1.
   }
   
@@ -420,7 +434,7 @@ Function LoadShip{
           if hasmod:length > 0 break.
         }
       IF hasmod = 0 {if listinc > 1 loadbar(). return 0.}
-      if DbgLog > 0 log2file("MAKE LIST "+tagnameIn+"-"+LISTTOSTRING(modulesin)).
+      if DbgLog > 2 log2file("MAKE LIST "+tagnameIn+"-"+LISTTOSTRING(modulesin)).
       global tempTAGS TO TAGCHECK(typename,modules).
       }else{
         if typename = "Action Group"set tempTAGS to list(12,"AG1","AG2","AG3","AG4","AG5","AG6","AG7","AG8","AG9","AG10", "THROTTLE","RCS").
@@ -487,7 +501,7 @@ Function LoadShip{
             LOCAL TGLGD TO 0..
               for p in PrtListIn {
                 if p:hasmodule(m) {
-                  //SET ModFound TO 1.
+                  SET ModFound TO 1.
                   local t to p:Tag. 
                   if not tl:contains(p:tag) {
                     SET TGLGD TO 0.
@@ -496,7 +510,7 @@ Function LoadShip{
                     else{
                     if tname = "Solar Panel" {
                       if p:name:contains("ISRU") set t to "".
-                      set ModFound to 1.
+                      //set ModFound to 1.
                       }
                     else{
                     if tname = "Cargo Bay" {
@@ -565,6 +579,7 @@ Function LoadShip{
               if typename = Flytag {set typename to "Flight Control". set HUDname to "FLGHT CTRL".}
               if typename = Cntrltag {set typename to "control srf". set HUDname to  "CNTRL SURF".}
               if typename = engtag {set typename to "Engines". set HUDname to  " ENGINES  ".}
+              if typename = Inttag {set typename to "Intake". set HUDname to  "  INTAKES ".}
               if typename = dcptag {set typename to "Decoupler". set HUDname to  "DECOUPLERS".}
               if typename = geartag {set typename to "Gear". set HUDname to  "   GEAR   ".}
               if typename = chutetag {set typename to "Parachute". set HUDname to  "PARACHUTES".}
@@ -685,6 +700,7 @@ Function LoadShip{
       local loadp to 17. if colorprint > 0{ set loadp to loadp+9. PRINT " " AT (80,LNstp-1).}
       local cnt2 to 0.
           for m in autotaglist{set loadp to loadp+1. print "." at (loadp,LNstp-1).
+          if dbglog > 2 log2file("    Module:"+m).
             set cnt to 1.
             if SHIP:MODULESNAMED(m):length <> 0 {
               FOR prt IN PrtListIn {
@@ -709,12 +725,12 @@ Function LoadShip{
                     IF prt:hasmodule("CMDropper"){set prt:TAG to prt:TITLE.}
                       ELSE{
                         if prt:hasmodule(m){
-                          set prt:TAG to prt:TITLE+cnt. 
-                          for wd in trimwords{
-                            set prt:TAG to Removespecial(prt:TAG,wd).
-                          }
+                            local tgt to prt:TITLE. 
+                            for wd in trimwords set tgt to Removespecial(tgt,wd).
+                            if tgt:contains("weapon manager") set tgt to tgt:REPLACE("weapon manager", "WM-").
+                            set prt:TAG to tgt+cnt.
                           set cnt to cnt+1.}}}}			 
-                if dbglog > 1 and prt:TAG <> "" log2file("   "+prt+"-"+prt:TAG).
+                          if dbglog > 2 and prt:TAG <> "" log2file("      "+prt+"-"+prt:TAG).
                 }														
               }
             }
@@ -727,7 +743,7 @@ Function LoadShip{
                   IF senselist[2] = 1 SET SENSORPRINT TO SENSORPRINT+"Light,".
                   if SENSORPRINT <> "Sensors Found:" printrow(SENSORPRINT).
                   global alltagged to ship:ALLTAGGEDPARTS():copy.
-                  global PrtListcur to SetPartList(ship:ALLTAGGEDPARTS()).
+                  global PrtListcur to SetPartList(ship:ALLTAGGEDPARTS(),1).
     }
     function checkmodeavail{
                     if colorprint > 0 PRINT "  " AT (80,1).
@@ -766,9 +782,9 @@ Function LoadShip{
                          modulelistAlt:add(list("Action"      ,"ModuleNavLight"        ,"turn light on"      ,"turn light off"     ,""                        ,""                 ,""                  ,""             ,""         ,""         )). 
                          modulelistRpt:add(list("light status","light status"          ," TURNED ON "        ," TURNED OFF "       ,"off"                     ," TURNED ON "      ," TURNED OFF "      ,""             ,""         ,""         )).}else{ 
           //good3
-          if i = engtag    {modulelist:add(list("Event"  ,"ModuleEnginesFX"              ,"activate engine"   ,"shutdown engine"    ,"MultiModeEngine"         ,"Toggle Mode"      ,"Toggle Mode"       ,"ModuleGimbal","toggle gimbal" ,"toggle gimbal"         )).
-                         modulelistAlt:add(list("Event"  ,"ModuleEngines"               ,"activate engine"    ,"shutdown engine"    ,""                        ,""                 ,""                  ,""             ,""              ,""         )).
-                         modulelistRpt:add(list(" "      ,"Status"                      ," ACTIVATED "        ," SHUT DOWN "        ,"mode"                    ," MODE TOGGLED"    ,"MODE TOGGLED"      ,"gimbal"       ,"GIMBAL TOGGLED","GIMBAL TOGGLED")).}else{
+          if i = engtag    {modulelist:add(list("Event"  ,"ModuleEnginesFX"              ,"activate engine"   ,"shutdown engine"    ,"MultiModeEngine"         ,"Toggle Mode"      ,"Toggle Mode"       ,"ModuleGimbal","toggle gimbal" ,"toggle gimbal"  ,""             ,""         ,""         )).
+                         modulelistAlt:add(list("Event"  ,"ModuleEngines"               ,"activate engine"    ,"shutdown engine"    ,""                        ,""                 ,""                  ,""             ,""              ,""              ,""             ,""         ,""         )).
+                         modulelistRpt:add(list(" "      ,"Status"                      ," ACTIVATED "        ," SHUT DOWN "        ,"mode"                    ," MODE TOGGLED"    ,"MODE TOGGLED"      ,"gimbal"       ,"GIMBAL TOGGLED","GIMBAL TOGGLED",""             ,""         ,""         )).}else{
           //good2
           if i = ladtag    {modulelist:add(list("Event"  ,"RetractableLadder"           ,"extend ladder"     ,"retract ladder"     ,""                        ,""                 ,""                  ,""             ,""         ,""         )).
                          modulelistAlt:add(list(""       ,""                            ,""                  ,""                   ,""                        ,""                 ,""                  ,""             ,""         ,""         )).
@@ -787,8 +803,8 @@ Function LoadShip{
                          modulelistAlt:add(list("Event"  ,"hangar"                      ,"open gates"        ,"close gates"        ,""                        ,""                 ,""                  ,""             ,""         ,""         )). 
                          modulelistRpt:add(list(" "      ,"STATUS"                      ," OPENED"           ," CLOSED"            ,""                        ,""                 ,""                  ,""             ,""         ,""         )).}else{
           //good2
-          if i = chutetag  {modulelist:add(list("Action" ,"RealChuteModule"             ,"arm parachute"     ,"disarm parachute"  ,"RealChuteModule"          ,"cut chute"        ,"cut chute"         ,"RealChuteModule","deploy chute","deploy chute",""             ,""         ,""         )).
-                         modulelistAlt:add(list("Event"  ,"moduleparachute"             ,"deploy chute"      ,"disarm"             ,"moduleparachute"         ,"cut chute"        ,"cut chute"         ,""               ,""            ,""            ,""             ,""         ,""         )). 
+          if i = chutetag  {modulelist:add(list("Action" ,"RealChuteModule"             ,"arm parachute"     ,"disarm parachute"  ,"RealChuteModule"                       ,""         ,""         ,"cut chute"        ,"cut chute"         ,"RealChuteModule","deploy chute","deploy chute",""             ,""         ,""         )).
+                         modulelistAlt:add(list("Event"  ,"moduleparachute"             ,"deploy chute"      ,"disarm"             ,"moduleparachute"         ,"cut chute"        ,"cut chute"         ,""               ,""            ,""            ,"")). 
                          modulelistRpt:add(list(" "      ,"altitude"                    ," ARMED"            ," DISARMED"          ,"safe to deploy?"         ," CHUTE CUT"       ," CHUTE CUT"        ,""               ,""            ,""            ,""             ,""         ,""         )).}else{
           //good2
           if i = slrtag    {modulelist:add(list("Event"  ,"ModuleDeployableSolarPanel"  ,"extend Solar Panel","retract Solar Panel","ModuleResourceConverter" ,"deploy scanner"  ,"deploy scanner"     ,""             ,""         ,""         )).
@@ -828,13 +844,13 @@ Function LoadShip{
                          modulelistAlt:add(list(""       ,""                            ,""                    ,""                 ,""                       ,""                ,""                   ,""                ,""                ,""         )).
                          modulelistRpt:add(list(" "      ,"Status"                      ," DISCHARGING"        ," CHARGING"        ,""                       ," CHARGE ENABLED "," CHARGE ENABLED   ",""                ,"CHARGE DISABLED   ","CHARGE DISABLED   ")).}else{
         //good3
-        if i = Radartag    {modulelist:add(list("Event"  ,"ModuleRadar"                 ,"enable radar"      ,"disable radar"      ,""                        ,""                 ,""                   ,""             ,""         ,""         )).
+        if i = Radartag    {modulelist:add(list("Event"  ,"ModuleRadar"                 ,"enable radar"      ,"disable radar"      ,""                        ,""                ,""                   ,""             ,""         ,""         )).
                          modulelistAlt:add(list("Action" ,""                            ,""                  ,""                   ,"ModuleRadar"             ,"target PREV"    ,"target PREV"         ,"ModuleRadar"  ,"target next" ,"target next"         )).
                          modulelistRpt:add(list(" "      ,"current locks"               ," RADAR ON"," RADAR OFF",""                        ," PREVIOUS TARGET"," PREVIOUS TARGET"   ,""             ," NEXT TARGET"," NEXT TARGET"         )).}else{
-        //NOT WORKING cant fix until duplicat field names is fixed // worked around
-         if i = rwtag      {modulelist:add(list("Action" ,"ModuleReactionWheel"         ,"activate wheel"  ,"activate wheel"     ,"ModuleReactionWheel"     ,"deactivate wheel","deactivate wheel"   ,""             ,""         ,""         )).
-                         modulelistAlt:add(list(""       ,""                            ,""                  ,""                 ,""                        ,""                ,""                   ,""             ,""         ,""         )).
-                         modulelistRpt:add(list(" "      ,""                            ," ENABLED          "," ENABLED          ",""                       ," DISABLED"       ,"DISABLED"           ,""             ,""         ,""         )).}ELSE{
+        //
+         if i = Inttag     {modulelist:add(list("Event"  ,"ModuleResourceIntake"        ,"open intake"       ,"close intake"     ,"ModuleResourceIntake"    ,""                  ,""                   ,"ModuleResourceIntake",""         ,""         )).
+                         modulelistAlt:add(list(""       ,""                            ,""                  ,""                 ,""                        ,""                  ,""                   ,""                    ,""         ,""         )).
+                         modulelistRpt:add(list(""       ,"status"                      ,"INTAKE OPENED     ","INTAKE CLOSED    ","flow"                    ,""                  ,""                   ,"effective air speed" ,""         ,""         )).}ELSE{
         //GOOD3
          if i = FWtag      {modulelist:add(list("Event" ,"ModulePartFirework"           ,"Launch"            ,"Launch"           ,""                        ,""                ,""                   ,""             ,""         ,""         )).
                          modulelistAlt:add(list(""       ,""                            ,""                  ,""                 ,""                        ,""                ,""                   ,""             ,""         ,""         )).
@@ -843,7 +859,10 @@ Function LoadShip{
          if i = RBTTag      {modulelist:add(list("ACTION","ModuleRoboticServoPiston"    ,"toggle piston"     ,""                    ,"ModuleRoboticServoPiston","toggle locked"           ,""                   ,""             ,""         ,""         ,""             ,""         ,""         )).
                          modulelistAlt:add(list(""       ,""                            ,""                  ,""                    ,""                        ,""                        ,""                   ,""             ,""         ,""         ,""             ,""         ,""         )).
                          modulelistRpt:add(list(" "      ,"current extension"           ,"MOVING"            ,"MOVING"              ,"locked"                  ,"LOCK TOGGLED   "         ,"LOCK TOGGLED       ",""             ,""         ,""         ,""             ,""         ,""         )).}ELSE{
- 
+         //NOT WORKING cant fix until duplicat field names is fixed // worked around
+         if i = rwtag      {modulelist:add(list("Action" ,"ModuleReactionWheel"         ,"activate wheel"  ,"activate wheel"     ,"ModuleReactionWheel"     ,"deactivate wheel","deactivate wheel"   ,""             ,""         ,""         )).
+                         modulelistAlt:add(list(""       ,""                            ,""                  ,""                 ,""                        ,""                ,""                   ,""             ,""         ,""         )).
+                         modulelistRpt:add(list(" "      ,""                            ," ENABLED          "," ENABLED          ",""                       ," DISABLED"       ,"DISABLED"           ,""             ,""         ,""         )).}ELSE{
          //GOOD2
         if i = RCStag    {modulelist:add(list("Action"    ,"ModuleRCSFX"                ,"toggle rcs thrust" ,"toggle rcs thrust"  ,""                        ,""                ,""                   ,""             ,""         ,""         )).
                          modulelistAlt:add(list(""       ,""                            ,""                  ,""                   ,""                        ,""                ,""                   ,""             ,""         ,""         )).
@@ -901,7 +920,7 @@ Function LoadShip{
                          modulelistAlt:add(list(""       ,""                           ,""                  ,""                    ,""                          ,""                 ,""                 ,""            ,""         ,""         )).
                          modulelistRpt:add(list(" "      ,""                           ," TURNED ON",               " TURNED OFF",                ""                          ," "                ,""                 ,""            ,""         ,""         )).}
                                           
-                         else{}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}
+                         else{}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}
       }   
     }
     Function CheckSettings{local loadp to 22. if colorprint > 0{ set loadp to loadp+9. PRINT " " AT (80,LNstp-1).}
@@ -919,8 +938,24 @@ Function LoadShip{
               if i = agtag or i = flytag or i = lighttag break.
               }}}
       }
-    function CheckModule {//togglegroup(item tag number, part tag number, option).
+    function CheckModule {
       local parameter Inum, tagnum, optn is 1.
+          function SetTrgVars2{
+            local parameter inlst,fldin is 0, evactin is 0.
+            if DbgLog > 1 log2file("     SETTRGVARS2-MODULE:"+INLST[0]+" EVENT1ON:"+inlst[1]+" EVENT1OFF:"+inlst[2]).
+            if evactin = 0 set ea1 to inlst[4].
+              if inlst[0] <> "" and inlst[0] <> module2 set module1 to inlst[0]. 
+              if inlst[1] <> "" and inlst[1] <> Event2On  set Event1On  to inlst[1].
+              if inlst[2] <> "" and inlst[2] <> Event2Off set Event1Off to inlst[2]. 
+            if fldin > -1{
+              if fldin = 0 set fld to " ". else set fld to fldin.
+            }
+          }
+          function clearev2{
+            if dbglog > 2 log2file("        CLEAREV2").
+            set event1on to "". set event1off to "". set module1 to "".
+            set event2on to "". set event2off to "". set module2 to "".
+          }
       local MDL to modulelist[inum].
       local MDL2 to modulelistAlt[inum].
       local MDL3 to modulelistRPT[inum].
@@ -981,13 +1016,22 @@ Function LoadShip{
                 local lon to list("on", "activate").
                 local loff to list("off","shutdown").
                 local Elst to engModAlt.
-                if p:hassuffix("modes") if P:modes:length > 1 if not P:primarymode set Elst to list("MultiModeEngine").
-                if p:hassuffix("ignition"){if p:ignition = false set loff to list(""). else set lon to list("").}           
+                if p:hasmodule("FSengineBladed"){if getEvAct(pl[0],"FSengineBladed","Status",30):contains("inactive") set loff to list(""). else set lon to list("").}
+                else{
+                    if p:hassuffix("modes") if P:modes:length > 1 if not P:primarymode set Elst to list("MultiModeEngine").
+                    if p:hassuffix("ignition"){if p:ignition = false {set loff to list(""). set OPSET to 1.} else {set lon to list(""). set OPSET to 2.}}  
+                    
+                }
                 local ccc to getactions("Actions",Elst,inum, tagnum,optn,3,lon,loff).
                 if  ccc[3] > 0 SetTrgVars2(CCC,-1).
               }
-              if p:hasmodule("ModuleGimbal"){
-                IF optn = 3 {set fld to "GIMBAL". set op to False. set ea1 to "Action".set ea2 to "Action".}
+              
+              IF optn = 3 {
+                if p:hasmodule("ModuleGimbal"){set fld to "GIMBAL". set op to False. set ea1 to "Action".set ea2 to "Action".}
+                if p:hasmodule("FSswitchEngineThrustTransform"){
+                    local ccc to getactions("Actions",list("FSswitchEngineThrustTransform"),inum, tagnum,optn,3,list("reverse"),list("normal")).
+                    if  ccc[3] > 0 SetTrgVars2(CCC,-1).
+                }
               }
             }
             else{
@@ -1055,9 +1099,9 @@ Function LoadShip{
               if FldVal = op set opset to 1. else set opset to 2. 
               }
                 else{
-                  if ea1 = "Event" or ea2 = "Event"   set opset to getactions("OnOff",list(module1,module2),inum, tagnum,optn,1,list(Event1On,Event2On),list(Event1Off,Event2Off)).
-                if opset = 0 {
-                  if ea1 = "Action" or ea2 = "Action" set opset to getactions("OnOff",list(module1,module2),inum, tagnum,optn,3,list(Event1On,Event2On),list(Event1Off,Event2Off)).}
+                if opset = 0 {if ea1 = "Event" or ea2 = "Event"   set opset to getactions("OnOff",list(module1,module2),inum, tagnum,optn,1,list(Event1On,Event2On),list(Event1Off,Event2Off)).}
+                if opset = 0 {if ea1 = "Action" or ea2 = "Action" set opset to getactions("OnOff",list(module1,module2),inum, tagnum,optn,2,list(Event1On,Event2On),list(Event1Off,Event2Off)).}
+                if opset = 0 {                                    set opset to getactions("OnOff",list(module1,module2),inum, tagnum,optn,3,list(Event1On,Event2On),list(Event1Off,Event2Off)).}
                   }}}
                   if opset = 1 {
                     if optn =1  SET ans TO 1.
@@ -1081,21 +1125,6 @@ Function LoadShip{
     }  
                 return ans.
       }
-          function SetTrgVars2{
-            local parameter inlst,fldin is 0, evactin is 0.
-            if DbgLog > 1 log2file("     SETTRGVARS2-MODULE:"+INLST[0]+" EVENT1ON:"+EVENT1ON+" EVENT1OFF:"+EVENT1OFF).
-            if evactin = 0 set ea1 to inlst[4].
-              if inlst[0] <> "" and inlst[0] <> module2 set module1 to inlst[0]. 
-              if inlst[1] <> "" and inlst[1] <> Event2On  set Event1On  to inlst[1].
-              if inlst[2] <> "" and inlst[2] <> Event2Off set Event1Off to inlst[2]. 
-            if fldin > -1{
-              if fldin = 0 set fld to " ". else set fld to fldin.
-            }
-          }
-          function clearev2{
-            set event1on to "". set event1off to "". set module1 to "".
-            set event2on to "". set event2off to "". set module2 to "".
-          }
   }
 function printrow{
       local parameter var, wt is 2.
@@ -1119,6 +1148,7 @@ function printrow{
       return 0.
     }
 function ISRUcheck{
+           if DbgLog > 2 log2file("   ISRUcheck and settings lists" ).
       if ISRUTag <> 0 {
       set isruoptlst to list().
       for i in range (1,5){
@@ -1163,8 +1193,12 @@ function ISRUcheck{
                                   list("","0.01/0.75/0.01" ,"50/5000/50"   ,"0/10/1"        ,"0/2/1"),
                                   list(""," kPa"           ," M"          ," "              ,"SAFE/RISKY/IMMIDIATE")).
        
+          set PROPModLst to LIST(list("","Max RPM"        ,"Steering Response"),
+                                 list("","100/1000/25"    ,"0/15/.1"          )).
 
-
+          set LightModLst to LIST(list("","blink period" ,"pitch angle", "light emission"),
+                                  list("","0/2/.1"       ,"0/180/5"    , "0/1/1"),
+                                  list("","0/0/0"        ,"0/0/0"      , "true/false")).
       
       local rscl to getRSCList(ship:resources,2).
       global rsclist to rscl[0].
@@ -1173,15 +1207,20 @@ function ISRUcheck{
       global prsclist to list("").
 
 
-    }
+}
 function SetPartList{
-local parameter lin.
+local parameter lin, OPT2 IS 0.
+if dbglog > 1 log2file("    SET PART LIST").
 set checktime to time:seconds.
 local prtltmp to list().
+  IF OPT2 = 1 {set lin to CheckAttached(lin).}
 for prt in lin{
-  local opt to checkdcp(prt,"payload").
-  if IsPayload[0] = 0 and opt[0] = 0 prtltmp:add(prt).
-  if IsPayload[0] = 1 and opt[0] = 1 prtltmp:add(prt).
+  if prt:tag <> "" or opt2 = 0{
+    if dbglog > 2 log2file("        PART:"+prt).
+    local opt to checkdcp(prt,"payload").
+    if IsPayload[0] = 0 and opt[0] = 0 prtltmp:add(prt).
+    if IsPayload[0] = 1 and opt[0] = 1 prtltmp:add(prt).
+  }
 }
 return prtltmp.
 }
@@ -1246,9 +1285,7 @@ Function SetAutoTriggers{
     for u in range(1,3){
       if u = 3 break.
       for i in range (1,itemlist[0]+1){AutoLst[J][u]:add(list(0)). AutoLst[J][u+2]:add(list(0)).
-      //if i = itemlist[0]+1 break.
         for t in range (1,prtTAGList[I][0]+1){if t = 1 AND U = 1 and j = 1{AutotagLstUP:add(list(0)). AutotagLstDN:add(list(0)). AutotagLstNAUP:add(list(0)). AutotagLstNADN:add(list(0)).}
-        //if t = prtTAGList[I][0]+1 break.
           if AutovalList[I][T] <> 0 and abs(AutoDspList[I][T]) = j{
             IF U = 1 {
               IF AutovalList[I][T] > 0 {
@@ -1262,7 +1299,6 @@ Function SetAutoTriggers{
                     if not AutoItemLst[J][U+2]:contains(i) AutoItemLst[J][U+2]:add(i). 
                 }
               }
-              
             }ELSE{
               IF U = 2 {
                 IF AutovalList[I][T] < 0 {
@@ -1274,15 +1310,12 @@ Function SetAutoTriggers{
                     AutoLst[J][U+2][I]:add(ABS(AutovalList[I][T])).
                     if not AutotagLstNADN[I]:contains(t) AutotagLstNADN[I]:add(t).
                     if not AutoItemLst[J][U+2]:contains(i) AutoItemLst[J][U+2]:add(i). 
-                }
-                  
+                  }
                 }
               }
             }     
           }
       }
-      //SET AutotagLstUP[I][0] TO 0.
-      //SET AutotagLstDN[I][0] TO 0.
     }
   }
 }
@@ -1294,6 +1327,7 @@ function UpdateAutoTriggers{
                 log2file("UPDATEAUTOTRIGGERS:"+Removespecial(MODELONG[modenum])).
                 log2file("   Updnnum:"+Updnnum+"-ModeNum:"+ModeNum+"-ItmNum:"+ItmNum+"-TgNum:"+TgNum+"-opt:"+opt ).
                 if DbgLog > 1 {
+                  log2file("   UpdateAutoTriggers (autoRstList[ItmNum][TgNum]("+autoRstList[ItmNum][TgNum]+"),AutoDspList[ItmNum][TgNum]("+AutoDspList[ItmNum][TgNum]+"),ItmNum("+ItmNum+"),TgNum("+TgNum+"))." ).
                   log2file("   IF AutovalList[ItmNum][TgNum] > 0:"+ AutovalList[ItmNum][TgNum] ).
                   log2file("   if AutoDspList[ItmNum][TgNum] > 1 and AutoDspList[ItmNum][TgNum] = ModeNum " ).
                   log2file("   if "+AutoDspList[ItmNum][TgNum]+" > 1 and "+AutoDspList[ItmNum][TgNum]+" = "+ModeNum ).
@@ -1330,11 +1364,9 @@ function UpdateAutoTriggers{
                 }
 
       if opt = 0 UpdateAutoMinMax(ModeNum). else setAutoMinMax(). //maybe check length to to fulll update on values with values using autotaglist lengths..
-       //setAutoMinMax().
 }
 function checkautotrigger{
   local parameter inlist.
-  //IF dbglog > 1 log2file("checkautotrigger:"+LISTTOSTRING(INLIST)).
   for itm in inlist if itm <> 0 return 1.
   return 0.
 }
@@ -1425,22 +1457,6 @@ function GetSTSList {
   for i in range (1,itemlist[0]+1){for item in listL[I]{if item<> 0 {if NOT LST:CONTAINS(ITEM) LST:ADD(item).}}}
   return lst.  
 }
-function listfix{ //doesnt work
-  local parameter lstin.
-          for i in range (1,itemlist[0]+1){
-            for T in range (1,prtTAGList[I][0]+1){if t = prtTAGList[I][0]+1 break.
-                print i+"-"+t+"-"+p.
-                local zzz to lstin[i][t]:tostring.
-                set lstin[i][t] to zzz:tonumber.
-              }
-          }
-return lstin:copy.
-}
-
-
-
-
-
 
 function loadAutoSettings{
   if dbglog > 0 log2file("    LOAD AUTO SETTINGS").
@@ -1460,13 +1476,18 @@ function loadAutoSettings{
       global AutoRscListTMP to  listin[6]:copy.
       global AutoTRGListTMP to  listin[7]:copy.
           for i in range (1,itemlistTMP[0]+1){
+            if dbglog > 2 log2file("      ITEM:"+I).
             for T in range (1,prtTAGListTMP[I][0]+1){if t = prtTAGListTMP[I][0]+1 break.
+            if dbglog > 2 log2file("         TAG:"+T).
               local tmplist to ship:partstagged(prttaglistTMP[I][T]).
                 FOR P IN RANGE (1,prtListTMP[I][T][0]+1){if p = prtListTMP[I][T][0]+1 break.
+                if dbglog > 2 log2file("          PART:"+p).
                   local tmplist2 to tmplist:copy.
                   local i1 to itemlist:find(itemlistTMP[I]).
+                  if dbglog > 2 log2file("          ITEM1:"+I1).
                   if i1 > 0 {
                   local t1 to prttagList[I1]:find(prttagListTMP[I][T]).
+                    if dbglog > 2 log2file("              tag1:"+T1).
                       if t1 > 0 {
                         if prtlist[I1][T1][0]+1 > p{
                           if prtlisttmp[I][T][P]:tostring = core:part:tostring and prtlist[I1][T1][P]:tostring <> core:part:tostring 
@@ -1490,14 +1511,14 @@ function loadAutoSettings{
       if itemlistTMP[0] > itemlist[0] set lstoff to 1. 
       else if itemlistTMP[0] < itemlist[0] set lstoff to 2.
       if lstoff = 0 {
-        if dbglog > 2 log2file("      ITEMLIST LENGTH:"+itemlist[0]+"="+itemlisttmp[0]).
-        for i2 in range(1,itemlist[0]+1){
+        if dbglog > 2 log2file("    ITEMLIST LENGTH:"+itemlist[0]+"="+itemlisttmp[0]).
+        for i2 in range(1,itemlist[0]+1){ //if i2 = itemlist[0]+1 break.
           if prtTagListTMP[i2][0] > prtTagList[i2][0] set lstoff to 1. 
           else if prtTagList[i2][0] < prtTagListTMP[i2][0] set lstoff to 2.
           if lstoff = 0 {
-            if dbglog > 2 log2file("         TAGLIST LENGTH:"+i2+":"+prtTagList[i2][0]+"="+prtTagListTMP[i2][0]).
+            if dbglog > 2 log2file("      TAGLIST LENGTH:"+i2+":"+prtTagList[i2][0]+"="+prtTagListTMP[i2][0]).
             for t2 in range(1,prtTagList[i2][0]+1){
-              if dbglog > 2 log2file("                   TAG:"+T2+":"+prtTagList[i2][T2]+"="+prtTagListTMP[i2][T2]).
+              if dbglog > 2 log2file("        TAG:"+T2+":"+prtTagList[i2][T2]+"="+prtTagListTMP[i2][T2]).
               if prtlistTMP[i2][t2][0] > prtlist[i2][t2][0] set lstoff to 1. 
               else if prtlistTMP[i2][t2][0] < prtlist[i2][t2][0] set lstoff to 2.
               if lstoff <> 0 break. else if dbglog > 2 log2file("         PARTLIST LENGTH:"+t2+":"+prtlist[i2][t2][0]+"="+prtlistTMP[i2][t2][0]).
@@ -1516,19 +1537,30 @@ function loadAutoSettings{
       if imin < max(itemlistTMP[0], itemlist[0]) set ioff to 1.
       if tmin < max(prttaglistTMP[1][0], prttaglist[1][0]) set toff to 1.
       if pmin < max(prtlistTMP[1][1][0], prtlist[1][1][0]) set poff to 1.
-      //for l in range(1,3){
         if LOADBKP<>2{
         for i in range(1,imin){
           if opt = 1 set loadp to loadp+1. print "." at (loadp,LNstp-1).
-          if itemlist[I] <> itemlistTMP[I]{set ioff to ioff+1. set ioff to ioff+1.}
-          for t in range(1,min(prttaglistTMP[I][0], prttaglist[I][0])+1){
-            if t < tmin  if prttaglist[I][T] <> prttaglistTMP[I][T]{set toff to toff+1. set toff to ioff+1.}
-            for p in range(1,min(prtlistTMP[I][T][0], prtlist[I][T][0])+1){
-              if p < pmin if prtlist[I][T][P] <> prtlistTMP[I][T][P]{if NOT prtlist[I][T][P]:hasmodule("ModuleCommand"){ set poff to poff+1. set poff to ioff+1.}}
+          if itemlist[I] <> itemlistTMP[I]{
+            set ioff to ioff+1. 
+            set ioff to ioff+1. 
+            if dbglog > 2 log2file("      Item OFF:"+itemlistTMP[I]+"("+I+")"+"/"+itemlist[I]+"("+itemlist[0]+")").
+          }
+          for t in range(1,min(prttaglistTMP[I][0], prttaglist[I][0])){
+            if t < tmin  if prttaglist[I][T] <> prttaglistTMP[I][T]{
+              set toff to toff+1. 
+              set toff to ioff+1.
+              if dbglog > 2 log2file("       Tag OFF:"+itemlistTMP[I]+"("+I+")"+"-"+prttaglistTMP[I][t]+"("+i+")"+"/"+itemlist[I]+"("+I+")"+"-"+prttaglist[I][t]+"("+t+")").
+              }
+            for p in range(1,min(prtlistTMP[I][T][0], prtlist[I][T][0])){
+              if p < pmin if prtlist[I][T][P]:TOSTRING <> prtlistTMP[I][T][P]:TOSTRING{
+                if NOT prtlist[I][T][P]:hasmodule("ModuleCommand"){
+                  set poff to poff+1. set poff to ioff+1.
+                   if dbglog > 2 log2file("      Part OFF:"+itemlistTMP[I]+"("+I+")"+"-"+prttaglistTMP[I][t]+"("+T+")"+"-"+prtlistTMP[I][T][p]+"("+P+")"+"/"+itemlist[I]+"("+I+")"+"-"+prttaglist[I][t]+"("+t+")"+"-"+prtlist[I][T][p]+"("+p+")").
+                }
+              }
             }
           }
         }
-      //}
         }else {set ioff to 0. set toff to 0. set poff to 0.}
       IF autovallistTMP[0][0][0] > 1000 and ioff = 0 and toff = 0 and poff = 0 {set line to LNstp. set LNstp to LNstp+1. button7().}else{DESKTOP(). 
         if ioff = 0 {print "itemlist match" at (1,line). set line to line+1.}else{print "itemlist mismatch:"+ioff+" mismatched items" at (1,line).set line to line+1.}
@@ -1573,13 +1605,13 @@ function loadAutoSettings{
         if tme < 1 {button7().}
       }
 
-
-
-
       
         function evenlist{
           LOCAL PARAMETER OPIN.
           if dbglog > 1 log2file("    evenlist:"+opin).
+          if dbglog > 2 {log2file("      ITEMLIST   :"++LISTTOSTRING(itemlist)).
+                         log2file("      ITEMLISTTMP:"+LISTTOSTRING(itemlistTMP)).
+                         }
           local itl to list(0).
           IF OPIN = 1{
                 for k in range (1,itemlistTMP[0]+1){
@@ -1591,6 +1623,7 @@ function loadAutoSettings{
               if i < itemlistTMP[0]+1 {
                 //if i = itemlistTMP[0]+1 break.
                 if prtList:length = i prtList:add(list(list("temp"+"/"+0))).
+                if AutoDspList[0]:length = i AutoDspList[0]:add(list(0)).
                 if prtList[I][0][0]:tostring <> prtlistTMP[I][0][0]:tostring or prtList:length = i{
                   local pl0 to prtList[I][0][0]:split("/").
                   local plT to prtListTMP[I][0][0]:split("/").
@@ -1598,6 +1631,7 @@ function loadAutoSettings{
                   if plt[0] <> pl0[0] {
                     if pl0[1]:tonumber < itl:find(pl0[0]) or itl:find(pl0[0]) = -1{
                       local ADout to list(list(0)).
+                      local AD0ut to list(list(0)).
                       local AVout to list(list(0)).
                       local itmout to "na".
                       local tgout to list(1,"NONE").
@@ -1609,6 +1643,7 @@ function loadAutoSettings{
                       local a0out to list(list(0)).
                       if itl:find(pl0[0])-1 = pl0[1]:tonumber {
                         set ADout to AutoDspListTMP[I].
+                        set AD0ut to AutoDspListTMP[0][I].
                         set AVout to autovallistTMP[I].
                         set itmout to itemlistTMP[I].
                         set tgout to prttaglistTMP[I].
@@ -1618,15 +1653,29 @@ function loadAutoSettings{
                         set ac0ut to AutoRscListTMP[0][I].
                         set atout to AutoTRGListTMP[I].
                         set a0out to AutoTRGListTMP[0][I].
-                        }
-                      AutoDspList:insert(i,ADout:copy) .
+                      }
+                      if dbglog > 3 {
+                        log2file("AutoDspList:insert(" + i + "," + listtostring(ADout:copy) + ")") .
+                        log2file("AutoDspList[0]:insert(" + i + "," + listtostring(AD0ut:copy) + ")") .
+                        log2file("autovalList:insert(" + i + "," + listtostring(AVout:copy) + ")") .
+                        log2file("itemList:insert(" + i + "," + itmout + ")") .
+                        log2file("prttagList:insert(" + i + "," + listtostring(tgout:copy) + ")") .
+                        log2file("prtList:insert(" + i + "," + listtostring(ptout:copy) + ")") .
+                        log2file("autoRstList:insert(" + i + "," + listtostring(arout:copy) + ")") .
+                        log2file("AutoRscList:insert(" + i + "," + listtostring(acout:copy) + ")") .
+                        log2file("AutoRscList[0]:insert(" + i + "," + ac0ut + ")") .
+                        log2file("AutoTRGList:insert(" + i + "," + listtostring(atout:copy) + ")") .
+                        log2file("AutoTRGList[0]:insert(" + i + "," + listtostring(a0out:copy) + ")") .
+                      }
+                      AutoDspList:insert(i,ADout:copy).
+                      AutoDspList[0]:insert(i,AD0ut:copy).
                       autovallist:insert(i,AVout:copy) .
                       itemlist:insert(i,itmout).
                       prttaglist:insert(i,tgout:copy).
                       prtlist:insert(i,ptout:copy).
                       autoRstList:insert(i,arout:copy).
                       AutoRscList:insert(i,acout:copy).
-                      AutoRscList[0]:insert(i,ac0ut:copy).
+                      AutoRscList[0]:insert(i,ac0ut).
                       AutoTRGList:insert(i,atout:copy). 
                       AutoTRGList[0]:insert(i,a0out:copy). 
                       if plt[1]:tonumber = i {
@@ -1650,6 +1699,20 @@ function loadAutoSettings{
                         set AutoTRGList[I] to AutoTRGListtmp[I].
                         set AutoTRGList[0][I] to AutoTRGListtmp[0][I].
                         set prtList[I][0][0] to plt[0]+"/"+plt[1].
+                        if dbglog > 3 {
+                          log2file("          set to TMP:"+ prtList[I]+" to "+prtListTMP[I]).
+                          log2file("          set to TMP:"+ AutoDspList[I]+" to "+AutoDspListTMP[I]).
+                          log2file("          set to TMP:"+ autovallist[I]+" to "+autovallistTMP[I]).
+                          log2file("          set to TMP:"+ itemlist[I]+" to "+itemlistTMP[I]).
+                          log2file("          set to TMP:"+ prttaglist[I]+" to "+prttaglistTMP[I]).
+                          log2file("          set to TMP:"+ prtlist[I]+" to "+prtListTMP[I]).
+                          log2file("          set to TMP:"+ autoRstList[I]+" to "+autoRstListTMP[I]).
+                          log2file("          set to TMP:"+ AutoRscList[I]+" to "+AutoRscListTMP[I]).
+                          log2file("          set to TMP:"+ AutoRscList[I][0]+" to "+AutoRscListTMP[I][0]).
+                          log2file("          set to TMP:"+ AutoTRGList[I]+" to "+AutoTRGListTMP[I]).
+                          log2file("          set to TMP:"+ AutoTRGList[0][I]+" to "+AutoTRGListTMP[0][I]).
+                          log2file("          set to TMP:"+ prtList[I][0][0]+" to "+pl0[0]+"/"+pl0[1]).
+                        }
                         tagfix(plt[0],plt[1]).
                       }
                   }
@@ -1661,20 +1724,22 @@ function loadAutoSettings{
           IF OPIN = 2{
                 for k in range (1,itemlist[0]+1){
                   if not prtList[k][0][0]:tostring:contains("/") set prtList[k][0][0] to "temp"+"/"+0.
-                  log2file(prtList[k][0][0]).
+                  if dbglog > 1 log2file("      "+prtList[k][0][0]).
                   itl:add(prtList[k][0][0]:split("/")[0]).
                 }
             for i in range (1,itemlist[0]+1){
+              if dbglog > 2 log2file("      ITEM:"+I).
               if i < itemlist[0]+1 {
-                //if i = itemlist[0]+1 break.
                 if prtListTMP:length = i prtListTMP:add(list(list("temp"+"/"+0))).
+                if AutoDspListTMP[0]:length = i AutoDspListTMP[0]:add(list(0)).
                 if prtListTMP[I][0][0]:tostring <> prtlist[I][0][0]:tostring or prtListTMP:length = i{
                   local plt to prtListTMP[I][0][0]:split("/").
                   local pl0 to prtList[I][0][0]:split("/").
-                  IF DBGLOG > 2 log2file("   "+prtList[I][0][0]+":"+prtListTMP[I][0][0]).
+                  if dbglog > 2{log2file("      ITEM:"+I). log2file("      "+prtList[I][0][0]+":"+prtListTMP[I][0][0]).}
                   if pl0[0] <> plt[0] {
                     if plt[1]:tonumber < itl:find(plt[0]) or itl:find(plt[0]) = -1{
                       local ADout to list(list(0)).
+                      local AD0ut to list(list(0)).
                       local AVout to list(list(0)).
                       local itmout to "na".
                       local tgout to list(1,"NONE").
@@ -1686,6 +1751,7 @@ function loadAutoSettings{
                       local a0out to list(list(0)).
                       if itl:find(plt[0])-1 = plt[1]:tonumber {
                         set ADout to AutoDspList[I].
+                        set AD0ut to AutoDspListTMP[0][I].
                         set AVout to autovallist[I].
                         set itmout to itemlist[I].
                         set tgout to prttaglist[I].
@@ -1695,15 +1761,29 @@ function loadAutoSettings{
                         set ac0ut to AutoRscList[0][I].
                         set atout to AutoTRGList[I].
                         set a0out to AutoTRGList[0][I].
-                         }
+                      }
+                      if dbglog > 3 {
+                        log2file("          AutoDspListTMP:insert(" + i + "," + listtostring(ADout:copy) + ")") .
+                        log2file("          AutoDspListTMP[0]:insert(" + i + "," + listtostring(AD0ut:copy) + ")") .
+                        log2file("          autovallistTMP:insert(" + i + "," + listtostring(AVout:copy) + ")") .
+                        log2file("          itemlistTMP:insert(" + i + "," + itmout + ")") .
+                        log2file("          prttaglistTMP:insert(" + i + "," + listtostring(tgout:copy) + ")") .
+                        log2file("          prtListTMP:insert(" + i + "," + listtostring(ptout:copy) + ")") .
+                        log2file("          autoRstListTMP:insert(" + i + "," + listtostring(arout:copy) + ")") .
+                        log2file("          AutoRscListTMP:insert(" + i + "," + listtostring(acout:copy) + ")") .
+                        log2file("          AutoRscListTMP[0]:insert(" + i + "," + ac0ut + ")") .
+                        log2file("          AutoTRGListTMP:insert(" + i + "," + listtostring(atout:copy) + ")") .
+                        log2file("          AutoTRGListTMP[0]:insert(" + i + "," + listtostring(a0out:copy) + ")") .
+                      }
                       AutoDspListTMP:insert(i,ADout:copy) .
+                      AutoDspListTMP[0]:insert(i,AD0ut:copy) .
                       autovallistTMP:insert(i,AVout:copy) .
                       itemlistTMP:insert(i,itmout).
                       prttaglistTMP:insert(i,tgout:copy).
                       prtListTMP:insert(i,ptout:copy).
                       autoRstListTMP:insert(i,arout:copy) .
                       AutoRscListTMP:insert(i,acout:copy) .
-                      AutoRscListTMP[0]:insert(i,ac0ut:copy) .
+                      AutoRscListTMP[0]:insert(i,ac0ut) .
                       AutoTRGListTMP:insert(i,atout:copy) . 
                       AutoTRGListTMP[0]:insert(i,a0out:copy).
                       if pl0[1]:tonumber = i {
@@ -1712,8 +1792,8 @@ function loadAutoSettings{
                         tagfix(pl0[0],pl0[1]).
                       }
                     }
-
-                  }else{
+                  }
+                  else{
                       if pl0[1]:tonumber = i {
                         set prtListTMP[I] to prtList[I].
                         set AutoDspListTMP[I] to AutoDspList[I].
@@ -1727,6 +1807,20 @@ function loadAutoSettings{
                         set AutoTRGListTMP[I] to AutoTRGList[I].
                         set AutoTRGListTMP[0][I] to AutoTRGList[0][I].
                         set prtListTMP[I][0][0] to pl0[0]+"/"+pl0[1].
+                        if dbglog > 3 {
+                        log2file("          set TMP to:"+ prtListTMP[I]+" to "+prtList[I]).
+                        log2file("          set TMP to:"+ AutoDspListTMP[I]+" to "+AutoDspList[I]).
+                        log2file("          set TMP to:"+ autovallistTMP[I]+" to "+autovallist[I]).
+                        log2file("          set TMP to:"+ itemlistTMP[I]+" to "+itemlist[I]).
+                        log2file("          set TMP to:"+ prttaglistTMP[I]+" to "+prttaglist[I]).
+                        log2file("          set TMP to:"+ prtListTMP[I]+" to "+prtlist[I]).
+                        log2file("          set TMP to:"+ autoRstListTMP[I]+" to "+autoRstList[I]).
+                        log2file("          set TMP to:"+ AutoRscListTMP[I]+" to "+AutoRscList[I]).
+                        log2file("          set TMP to:"+ AutoRscListTMP[I][0]+" to "+AutoRscList[I][0]).
+                        log2file("          set TMP to:"+ AutoTRGListTMP[I]+" to "+AutoTRGList[I]).
+                        log2file("          set TMP to:"+ AutoTRGListTMP[0][I]+" to "+AutoTRGList[0][I]).
+                        log2file("          set TMP to:"+ prtListTMP[I][0][0]+" to "+pl0[0]+"/"+pl0[1]).
+                        }
                         tagfix(pl0[0],pl0[1]).
                       }
                   }
@@ -1736,56 +1830,57 @@ function loadAutoSettings{
             }
           }
           set itemlist[0] to itemlist:length-1.
-          //if itemlistTMP:length > itemlist:length set itemlistTMP to itemlistTMP:SUBLIST(0,itemlist:length).
           set itemlistTMP[0] to itemlistTMP:length-1.
+          if dbglog > 2 {log2file("      ITEMLIST   :"++LISTTOSTRING(itemlist)).
+                         log2file("      ITEMLISTTMP:"+LISTTOSTRING(itemlistTMP)).
+                         }
           set LFX to 1.
-          //set rchhk to 1.
-          //partcheck().
         }
         function tagfix{
           local parameter tagin, namein.
+          set tagin to tagin:tostring.
           if namein:typename="string" set namein to namein:tonumber.
           IF dbglog > 2 log2file("        TagFix:"+TAGIN+"-"+namein).
-          if tagin = "lighttag" set lighttag to namein.
-          if tagin = "AGTag" set AGTag to namein.
-          if tagin = "FlyTag" set FlyTag to namein.
-          if tagin = "CntrlTag" set CntrlTag to namein.
-          if tagin = "engtag" set engtag to namein.
-          if tagin = "dcptag" set dcptag to namein.
-          if tagin = "geartag" set geartag to namein.
-          if tagin = "chutetag" set chutetag to namein.
-          if tagin = "ladtag" set ladtag to namein.
-          if tagin = "baytag" set baytag to namein.
-          if tagin = "Docktag" set Docktag to namein.
-          if tagin = "RWtag" set RWtag to namein.
-          if tagin = "slrtag" set slrtag to namein.
-          if tagin = "RCStag" set RCStag to namein.
-          if tagin = "drilltag" set drilltag to namein.
-          if tagin = "radtag" set radtag to namein.
-          if tagin = "scitag" set scitag to namein.
-          if tagin = "anttag" set anttag to namein.
-          if tagin = "FWtag" set FWtag to namein.
-          if tagin = "ISRUTag" set ISRUTag to namein.
-          if tagin = "Labtag" set Labtag to namein.
-          if tagin = "RBTTag" set RBTTag to namein.
+          if tagin = "lighttag"{set lighttag to namein.}else{
+          if tagin = "AGTag"{set AGTag to namein.}else{
+          if tagin = "FlyTag"{set FlyTag to namein.}else{
+          if tagin = "CntrlTag"{set CntrlTag to namein.}else{
+          if tagin = "engtag"{set engtag to namein.}else{
+          if tagin = "Inttag"{set Inttag to namein.}else{
+          if tagin = "dcptag"{set dcptag to namein.}else{
+          if tagin = "geartag"{set geartag to namein.}else{
+          if tagin = "chutetag"{set chutetag to namein.}else{
+          if tagin = "ladtag"{set ladtag to namein.}else{
+          if tagin = "baytag"{set baytag to namein.}else{
+          if tagin = "Docktag"{set Docktag to namein.}else{
+          if tagin = "RWtag"{set RWtag to namein.}else{
+          if tagin = "slrtag"{set slrtag to namein.}else{
+          if tagin = "RCStag"{set RCStag to namein.}else{
+          if tagin = "drilltag"{set drilltag to namein.}else{
+          if tagin = "radtag"{set radtag to namein.}else{
+          if tagin = "scitag"{set scitag to namein.}else{
+          if tagin = "anttag"{set anttag to namein.}else{
+          if tagin = "FWtag"{set FWtag to namein.}else{
+          if tagin = "ISRUTag"{set ISRUTag to namein.}else{
+          if tagin = "Labtag"{set Labtag to namein.}else{
+          if tagin = "RBTTag"{set RBTTag to namein.}else{
           //MKS MOD
-          if tagin = "MksDrlTag" set MksDrlTag to namein.
-          if tagin = "PWRTag" set PWRTag to namein.
-          if tagin = "DEPOTag" set DEPOTag to namein.
-          if tagin = "habTag" set habTag to namein.
-          if tagin = "CnstTag" set CnstTag to namein.
-          if tagin = "DcnstTag" set DcnstTag to namein.
-          if tagin = "ACDTag" set ACDTag to namein.
+          if tagin = "MksDrlTag"{set MksDrlTag to namein.}else{
+          if tagin = "PWRTag"{set PWRTag to namein.}else{
+          if tagin = "DEPOTag"{set DEPOTag to namein.}else{
+          if tagin = "habTag"{set habTag to namein.}else{
+          if tagin = "CnstTag"{set CnstTag to namein.}else{
+          if tagin = "DcnstTag"{set DcnstTag to namein.}else{
+          if tagin = "ACDTag"{set ACDTag to namein.}else{
           //OTHER MODS
-          if tagin = "CapTag" set CapTag to namein.
+          if tagin = "CapTag"{set CapTag to namein.}else{
           //BDA MOD (KEEP LAST TO MAAKE WMGR QUICKLY ACCESSABLE)
-        // if tagin = "Missiletag" set Missiletag to namein.
-        // if tagin = "Guntag" set Guntag to namein.
-          if tagin = "BDPtag" set BDPtag to namein.
-          if tagin = "CMtag" set CMtag to namein.
-          if tagin = "Radartag" set Radartag to namein.
-          if tagin = "FRNGtag" set FRNGtag to namein.
-          if tagin = "WMGRtag" set WMGRtag to namein.
+          if tagin = "BDPtag"{set BDPtag to namein.}else{
+          if tagin = "CMtag"{set CMtag to namein.}else{
+          if tagin = "Radartag"{set Radartag to namein.}else{
+          if tagin = "FRNGtag"{set FRNGtag to namein.}else{
+          if tagin = "WMGRtag"{set WMGRtag to namein.}else{ IF dbglog > 2 log2file("        FAILED:").
+          }}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}
         }
         FUNCTION ALOAD{
         local parameter rcheck is 0, loff is 0.
@@ -1800,21 +1895,13 @@ function loadAutoSettings{
           SET prtlist TO prtlistTMP:copy.
           SET prttaglist TO prttaglistTMP:copy.
         }
-        if AutoDspList[0]:length = 1 addlist().
+        if AutoDspList[0]:length < itemlist:length addlist().
         set HdngSet to autovallist[0][0][1].
-        //local prb to 0.
-        //if HdngSet[3]= 0 {set prb to 1.}else{if HdngSet[3]:length < 10 set prb to 1.}// can be removed after testing
-        //if  HdngSet:LENGTH < 4 or prb= 1{// can be removed after testing
-        //  set HdngSet to list(list(9,0  ,0   ,0   ,0   ,0      ,0   ,60 ,40  ,60 ), //set
-        //                      list(9,359, 180, 180,5000,1000000, 500,180,5000,180), //max
-        //                      list(9,0  ,-180,-180,0   ,0      ,-500,0  ,0   ,0  ), //min
-        //                      list(9,1  ,1   ,1   ,0   ,0      ,0   ,1  ,0   ,0  )). //on/off
-        //}
         SET HEIGHT TO autovallist[0][0][2].
         set refreshRateSlow to autovallist[0][0][4][0].
         set refreshRateFast to autovallist[0][0][4][1].
         if debug = 0 set debug to autovallist[0][0][4][2].
-        if dbglog = 0 set dbglog to autovallist[0][0][4][3]. 
+        //if dbglog = 0 set dbglog to autovallist[0][0][4][3]. 
         SaveAutoSettings().
         if rcheck = 1 LoadShip(0).
       }
@@ -1863,7 +1950,8 @@ function HudFuction{
     if refreshRateFast < 1 set refreshRateFast to 1.
     if refreshRateSlow < 1 set refreshRateSlow to 1.
     global MtrPrtSel to list(0,0,0,0,0,0,0,0,0).
-    global enghud to list(1,2,3).
+    global enghud to list().
+    for i in range(1, prtTagList[engtag][0]*2+2) enghud:insert(0,0).
     global AUTOHUD TO LIST(0,1,"  OVER ").
     global EmptyHud to "          ".
     global fuelmon to 0.
@@ -1892,15 +1980,40 @@ function HudFuction{
     HudOptsR:add("      ").
     HudOptsR:add(list(0,"   SET AUTO"    ,"   SET AUTO"    ,"   SET AUTO"    ,"   SET AUTO"    ,"     CANCEL"     ,"   SET AUTO"    ,"           "    ,"           "    ,"           "    ,"           "    )).
     HudOptsR:add(list(0,"    "       ,"    "       ,"    "       ,"    "       ,"      "     ,"EXP "       ,"    "       ,"    "       ,"    "       ,"    "       )).
-    FOR i IN RANGE(1, prtTagList[engtag][0]+1) { 
-      if prtTagList[engtag][I]:CONTAINS("Main") {enghud:remove(i-1). enghud:insert(0,i).}
+    local hdspot to 0.
+    local ins to 0.
+    local findtags to list("rotor","prop","Nuclear").
+    FOR eg IN RANGE(1, prtTagList[engtag][0]+1) {
+        if hdspot > enghud:length break.
+        if dbglog > 2 log2file("        ENG:"+eg+"  SPOT:"+hdspot+" ins:"+ins).
+        local md2 to 0.
+        local p1 to prtTagList[engtag][eg].
+        local p2 to prtList[engtag][eg][1].
+        if p2:hassuffix("modes") if P2:modes:length > 1     set md2 to 102.
+        if p2:hasmodule("FSengineBladed")                   set md2 to 102.
+        if p2:hasmodule("FSswitchEngineThrustTransform")    set md2 to 102.
+        if dbglog > 2 log2file("        PART:"+p2+"  TAG:"+p1+" md2:"+md2).
+        set enghud[hdspot] to eg.
+        if md2 > 0 set enghud[hdspot+1] to md2.
+        if p1:CONTAINS("Main") {
+            enghud:remove(hdspot). enghud:insert(0,eg).
+            if md2 > 1 {enghud:remove(hdspot+1). enghud:insert(1,md2).set ins to ins+1.}
+            set ins to ins+1.
+        }else{
+            for fndt in findtags{
+                if p1:CONTAINS(fndt){
+                    enghud:remove(hdspot). enghud:insert(ins,eg).
+                    if md2 > 1 {enghud:remove(hdspot+1). enghud:insert(ins+1,md2).set ins to ins+1.}
+                    set ins to ins+1.
+                    break.
+                }
+            }
+        }
+        set hdspot to hdspot+1.
+        if md2 > 0 set hdspot to hdspot+1.
     }
-    FOR I IN RANGE(1, 10) {
-       hsel:add(list(0,1,1,1)).
-    }
-    FOR i IN RANGE(0, 10) {
-      hudopts:add(list(" "," "," "," ")).
-    }
+    FOR I IN RANGE(1, 10) {hsel:add(list(0,1,1,1)). }
+    FOR i IN RANGE(0, 10) {hudopts:add(list(" "," "," "," ")).}
     FOR i IN RANGE(2, 10,2) {
       set HudOpts[I][1] to itemlist.
       set HudOpts[I][2] to prttaglist[1].
@@ -1922,7 +2035,7 @@ function HudFuction{
     }
       if hsel[2][2] >  HudOpts[2][2]:length set hsel[2][2] to 1.
       if hsel[2][1] >  HudOpts[2][1]:length set hsel[2][1] to 1.
-      global checktime to time:seconds.
+      set checktime to time:seconds.
   }
   function HudFuctionMain{
     //#region update screen
@@ -1938,7 +2051,7 @@ function HudFuction{
     updatehudSlow().
     set RowSel to 2.
     UPDATEHUDOPTS().
-   function updatehudSlow {
+   function updatehudSlow{
     IF dbglog > 2 log2file("UPDATEHUDSLOW").
       if hudop = 5{
         local enb to "".
@@ -1968,7 +2081,7 @@ function HudFuction{
         }
         print " |"+dctprint+"|"+enb2+"|"+enb3+"|" at (0,1).
         print "|"+enb+"|"+HudOpts[2][1][EnabSel] at (45,1).
-        print curdelay at (39,1).}
+        print setdelay at (39,1).}
       else{
       set eng[0] to EmptyHud.
       set eng[1] to EmptyHud.
@@ -1977,41 +2090,61 @@ function HudFuction{
       set eng[4] to EmptyHud.
       set eng[5] to EmptyHud.
       set eng[7] to EmptyHud.
-        for i in range(1,prtTagList[engtag][0]+1){
-          LOCAL TG TO prtTagList[engtag][enghud[i-1]].
-          LOCAL PT TO prtlist[engtag][enghud[i-1]][1].
-          local j to i*2.
-          set engsfx to " ENG:"+i.
-          if TG:CONTAINS("Main")     set engsfx to " MAIN ". 
-          if TG:CONTAINS("Scramjet") set engsfx to "SCRMJT". 
-          if TG:CONTAINS("Booster")  set engsfx to "BOOSTR". 
-          if TG:CONTAINS("Nuclear" ) set engsfx to "NUKENG".
-          local engact to 0.
-
-          if pt:hassuffix("ignition"){if pt:ignition = false set engact to 2. else set engact to 1.}
-          else{
-            local lon to list("on", "activate").
-            local loff to list("off","shutdown").
-            local Elst to engModAlt.
-            if Pt:hassuffix("modes") if Pt:modes:length > 1 if not Pt:primarymode set Elst to list("MultiModeEngine").
-            set engact to getactions("OnOff",Elst,engtag, enghud[i-1],1,1,lon,loff).
-          }
-          IF PT <> CORE:part {
-          if engact = 1{SET eng[j-1] TO engsfx+" ON ".}ELSE{if engact = 2{SET eng[j-1] TO engsfx+" OFF".}else{SET eng[j-1] TO EmptyHud.}}
-          IF PT:hasmodule("MultiModeEngine"){ 
-            local Md to PT:getmodule("MultiModeEngine"):getfield("mode").
-            if md = "Wet" set md to " AFTERBRN ". else if md = "ClosedCycle" set md to "CLOSED CYC". 
-            if Pt:hassuffix("modes") if Pt:modes:length > 1 if PT:primarymode {SET eng[J] TO "  NORMAL  ".} ELSE  {SET eng[J] TO md.}
-          }else{SET eng[J] TO EmptyHud.}
-          }else{SET eng[j] TO EmptyHud. SET eng[j-1] TO EmptyHud.}
+      local k to 0.
+        for i in range(1,prtTagList[engtag][0]*2){
+          local EngCur to enghud[i-1].
+            if EngCur < 100 and EngCur > 0 {
+                set k to k+1.
+            LOCAL TG TO prtTagList[engtag][EngCur].
+            LOCAL PT TO prtlist[engtag][EngCur][1].
+            local j to i+1.//*2.
+            set engsfx to makehud(Prttaglist[engtag][EngCur],5).
+            if TG:CONTAINS("Main")     set engsfx to " MAIN ". else{
+            if TG:CONTAINS("Scramjet") set engsfx to "SCRMJT". else{
+            if TG:CONTAINS("Booster")  set engsfx to "BOOSTR". else{
+            if TG:CONTAINS("Nuclear" ) set engsfx to "NUKENG". else{
+            if TG:CONTAINS("rotor" )   set engsfx to " ROTOR". else{
+            if TG:CONTAINS("prop" )    set engsfx to " PROP ". else{
+            if TG:CONTAINS("vtol" )    set engsfx to " VTOL ". else{
+            }}}}}}}
+            local engact to 0.
+            if pt:hasmodule("FSengineBladed"){if getEvAct(pt,"FSengineBladed","Status",30):contains("inactive") set engact to 2. else set engact to 1.}else{
+                if pt:hassuffix("ignition"){if pt:ignition = false set engact to 2. else set engact to 1.}
+                else{
+                    local lon to list("on", "activate").
+                    local loff to list("off","shutdown").
+                    local Elst to engModAlt.
+                    if Pt:hassuffix("modes") if Pt:modes:length > 1 if not Pt:primarymode set Elst to list("MultiModeEngine").
+                    set engact to getactions("OnOff",Elst,engtag, EngCur,1,1,lon,loff).
+                }
+            }
+            IF PT <> CORE:part {
+            if engact = 1{SET eng[j-1] TO engsfx+" ON ".}ELSE{if engact = 2{SET eng[j-1] TO engsfx+" OFF".}else{SET eng[j-1] TO EmptyHud.}}
+            IF PT:hasmodule("MultiModeEngine"){ 
+                local Md to PT:getmodule("MultiModeEngine"):getfield("mode").
+                if md = "Wet" set md to " AFTERBRN ". else if md = "ClosedCycle" set md to "CLOSED CYC". 
+                if Pt:hassuffix("modes") if Pt:modes:length > 1 if PT:primarymode {SET eng[J] TO "  NORMAL  ".} ELSE  {SET eng[J] TO md.}
+            }else{
+                if pt:hasmodule("FSengineBladed") SET eng[J] TO " HOVER TGL".
+                if pt:hasmodule("FSswitchEngineThrustTransform"){
+                    local ccc to  getactions("OnOff",list("FSswitchEngineThrustTransform"),engtag, EngCur,1,1,list("reverse"), list("normal")).
+                    if ccc > 0{
+                    if ccc= 1 set eng[J] to " FWD THRST".
+                    if ccc= 2 set eng[J] to "RVRS THRST". 
+                    }else{SET eng[j] TO EmptyHud.}
+                }
+            }
+            }else{SET eng[j] TO EmptyHud.}
+            }
+            IF INTAKES {SET Eng[7] TO "INTAKES ON".} ELSE  {SET Eng[7] TO "INTAKE OFF".} 
         }
-      IF INTAKES {SET Eng[7] TO "INTAKES ON".} ELSE  {SET Eng[7] TO "INTAKE OFF".} 
     }
       PRINT "|"+Eng[1]+"|"+Eng[2]+"|"+Eng[3]+"|"+Eng[4]+"|"+Eng[5]+"|"+Eng[7]+"|LEAVE PRGM|" at (0,0).
       if hudop <> 5 {if FuelUpdRate = "Slow" updatemeter().}
     }
    function updatehudFast {
       if hudop <> 5{
+        //if dbglog > 2 {if itemlist[0] <> ItemList:length-1 log2file("      itemlist error:"+LISTTOSTRING(itemlist)). else log2file("      itemlist GOOD  :"+LISTTOSTRING(itemlist)).} //error watch, do not uncomment
         set HUDTOP to GetHudTop().
         ListToSpace(HUDTOP[1],ploc2,2).
         ListToSpace(HUDTOP[0],ploc ,1).
@@ -2020,7 +2153,7 @@ function HudFuction{
         LOCAL STPRINT TO " "+HudOpts[1][1]+ HudOpts[1][2]+ HudOpts[1][3].
         IF STPREV <> STPRINT printline(STPRINT,0,hudstart-1).
         SET STPREV TO STPRINT.
-        if GrpDspList3[FLYTAG][1] = 6 {
+        if GrpDspList3[FLYTAG][1] = 6 and LinkLock = 0{
           LOCAL PR TO "                   ".
           IF FlState = "Flight" {SET  ss to "         SIDESLIP:"+round(bearing_between(ship,srfprograde,ship:facing),1). if colorprint = 1 {set pr to "    ".}}
           else{ set ss to "                ". if colorprint = 1 {set ss to "    ". set pr to "                ".}}
@@ -2086,13 +2219,20 @@ function HudFuction{
           LOCAL rdrmod to GetMultiModule(prtlist[radartag][1][1],"lock","ModuleRadar")[1].
           if wordcheck(rdrmod[0],"current locks") = 1 and rdrmod[1] > 0{listout2:add(PADMID("**LOCK**",pwdt2)).}
       }}
+      if BDPtag > 0 {local dbt to 3.
+        if getEvAct(prtlist[BDPtag][1][1],"BDModulePilotAI","deactivate pilot",1,dbt) = true {
+            local ptmp to CheckTrue(30,prtlist[BDPtag][1][1],"BDModulePilotAI","standby mode","** AI PILOT STDBY **","** AI PILOT ON **",dbt).
+            listout2:add(PADMID(ptmp,pwdt2)).
+        }
+      }
       if steeringmanager:enabled = false {if sas = true listout2:add(PADMID("SAS:"+SASMODE,pwdt2)).
       else listout2:add(PADMID("SAS OFF",pwdt2)).}else{
         if HdngSet[3][4]+HdngSet[3][5]+HdngSet[3][6] = 0 listout2:add(PADMID("HEADING LOCK",pwdt2)). else listout2:add(PADMID("AUTOPILOT",pwdt2)).
         }
       //hudtop right
       listout3:add("|THR"+SetGauge(round(throttle*100,0), 1, pwdt3-1)).
-      listout3:add("|ECG"+SetGauge(round(ship:electriccharge/ecmax*100,0), 1, pwdt3-1)).
+      LOCAL ECC TO ROUND(ship:electriccharge/ecmax*100,0).
+      listout3:add("|ECG("+ECC+")"+SetGauge(ECC, 1, pwdt3-6)). 
       IF FlState = "Flight" listout3:add("|AOA: "+round(vertical_aoa(),1)+"   ").
       listout3:add("|Speed: "+round(SHIP:VELOCITY:SURFACE:MAG,0)+" M/S   ").
       LOCAL VSP TO round(SHIP:VERTICALSPEED  ,0).
@@ -2104,7 +2244,7 @@ function HudFuction{
       until listout3:length = 8 listout3:add("             ").
       until listout1:length = 8 listout1:add("             ").   
       return list(LISTOUT1,listout2,listout3).
-        }
+    }
     }
    FUNCTION UPDATEHUDOPTS{
     IF dbglog > 2 log2file("UPDATEHUDOPTS").
@@ -2159,7 +2299,7 @@ function HudFuction{
       local pl to prtList[itemnumcur][TagNumCur].
       set pl to pl:sublist(1, pl:length).
       if itemnumcur <> agtag and itemnumcur <> flytag{
-        for p in pl{if not PrtListcur:contains(p) set MissingPart to MissingPart+1.}
+        for p in pl{if not PrtListcur:contains(p) or BadPart(p , currentTag) set MissingPart to MissingPart+1.}
       }
       //#endregion
       //#region run on change
@@ -2223,7 +2363,7 @@ function HudFuction{
                 PRINTLINE(" ONLY ENABLE LOGGING IF YOU ARE HAVING A PROBLEM","RED",14).
                 set ln14 to 1.
               }
-              }
+              }else{if TagNumCur = 2 {set BTHD11 to " SAVE BKP ". IF file_exists(autofileBAK) set BTHD10 to " LOAD BKP ". }}
           }
           ELSE{
           if itemnumcur = Flytag {set DispInfo to 52.
@@ -2254,9 +2394,9 @@ function HudFuction{
               if rowval = 1 {
                 set MtrCur[4] to 7. 
                 set MtrCur[3] to 1.
-                if getEvAct(pl[0],GearModLst[0][1],GearModLst[2][1],1) = False set ItmTrg to "SPRNG AUTO".else set ItmTrg to "SPRNG MAN ". 
-                IF getEvAct(pl[0],GearModLst[0][7],GearModLst[2][7],1) = False set BTHD10 to "FRCTN AUTO".else set BTHD10 to "FRCTN MAN ".
-                IF getEvAct(pl[0],GearModLst[0][3],GearModLst[2][3],1) = False set BTHD11 to "STEER AUTO".else set BTHD11 to "STEER MAN ". 
+                set ItmTrg to CheckTrue(1,pl[0], GearModLst[0][1],GearModLst[2][1],"SPRNG MAN ","SPRNG AUTO").
+                set BTHD10 to CheckTrue(1,pl[0], GearModLst[0][7],GearModLst[2][7],"FRCTN MAN ","FRCTN AUTO").
+                set BTHD11 to CheckTrue(1,pl[0], GearModLst[0][3],GearModLst[2][3],"STEER MAN ","STEER AUTO").
               }
             }ELSE{set BTHD11 to EmptyHud.}
           }
@@ -2520,7 +2660,38 @@ function HudFuction{
             }
           else{
           if itemnumcur = EngTag  {
-          IF currentpart:hasmodule("MultiModeEngine"){}else{set BTHD10 to emptyhud.} set DispInfo to 11.}
+            if currentpart:hassuffix("ignition"){if currentpart:ignition = false set GrpDspList[itemnumcur][TagNumCur] to 1. else set GrpDspList[itemnumcur][TagNumCur] to 2.}
+          IF currentpart:hasmodule("MultiModeEngine"){}else{
+                set BTHD10 to emptyhud.
+                IF currentpart:hasmodule("FSengineBladed"){
+                        set MtrCur[4] to 2.
+                        set MtrCur[3] to 1.
+                        if MtrCur[5] > MtrCur[4] set MtrCur[5] to MtrCur[3].
+                        SET    modulelist[itemnumcur][10] TO "FSengineBladed".
+                        set modulelistRPT[itemnumcur][10] to PROPModLst[0][MtrCur[5]].
+                    if rowval = 1 {
+                        SET HDXT TO "OPTN".
+                        set BTHD10 to CheckTrue(30, currentpart, "FSengineBladed","thr keys" ,"*THR KEYS*"," THR KEYS ",3).
+                        set BTHD11 to CheckTrue(30, currentpart, "FSengineBladed","thr state","*THR STAT*"," THR STAT ",3).
+                    }ELSE{
+                        set BTHD10 to " HOVER TGL".
+                        set BTHD11 to CheckTrue(30, currentpart, "FSengineBladed","steering" ," STEER ON "," STEER OFF",3).
+                    }
+                }
+                if currentpart:hasmodule("FSswitchEngineThrustTransform"){
+                    local ccc to  getactions("OnOff",list("FSswitchEngineThrustTransform"),itemnumcur, TagNumCur,1,1,list("reverse"), list("normal")).
+                    if ccc > 0{
+                    if ccc= 1 set BTHD10 to " FWD THRST".
+                    if ccc= 2 set BTHD10 to "RVRS THRST". 
+                    }
+                }
+            }
+             set DispInfo to 11.}
+          ELSE{
+          IF itemnumcur = Inttag {set DispInfo to 11.
+            local ccc to  getactions("OnOff",list("ModuleResourceIntake"),itemnumcur, TagNumCur,1,1,list("open"), list("close")).
+            if ccc > 0  set GrpDspList[itemnumcur][TagNumCur] to ccc.            
+          }
           ELSE{
           IF itemnumcur = cmtag {set DispInfo to 42.}
           ELSE{
@@ -2543,6 +2714,7 @@ function HudFuction{
             set MtrCur[4] to 12. 
             set MtrCur[3] to 1. 
             SET HDXT TO "OPTN". 
+            set ItmTrg to CheckTrue(1,pl[0],"BDModulePilotAI","deactivate pilot"," TURN OFF "," TURN ON  ",3).
           }
           ELSE{
           if itemnumcur = dcptag   {
@@ -2617,7 +2789,7 @@ function HudFuction{
               }
               else{}}}}}}
           }
-          else{}}}}}}}}}}}}}}}}}}}}}}}}}}}
+          else{}}}}}}}}}}}}}}}}}}}}}}}}}}}}
             if MtrCur[5] < MtrCur[3] set MtrCur[5] to MtrCur[3].
             if MtrCur[5] > MtrCur[4] set MtrCur[5] to MtrCur[4].
           if hudop <> 5 set actnlist to list(1,ItmTrg,BTHD10,BTHD11,EmptyHud).
@@ -2652,7 +2824,7 @@ function HudFuction{
               print  RSNM AT (WidthLim-RSNM:length,10).
               if ship:resources:tostring:contains(RscNum[RscNme]:tostring){ 
                 LOCAL RESPCT TO ROUND(ship:resources[RscNum[RscNme]]:amount/ship:resources[RscNum[RscNme]]:capacity*100,0).
-                  local lm to 70-RSNM:length-ClrMin. 
+                  local lm to 66-RSNM:length-ClrMin. 
                   local fmtr to RESPCT.
                   local lcl to MtrColor(fmtr).
                   SET InfoPrint to RSNM+"("+RESPCT+"%)"+GETCOLOR(SetGauge(RESPCT,0,lm),lcl).}
@@ -2688,7 +2860,6 @@ function HudFuction{
                 else{
                 if AutoSetMode = 15{
                   set nxtITM TO "  SEl RSC ".
-                  //local RscNme to prsclist[RscSelection][0].
                   LOCAL RSNM TO prsclist[RscSelection][1].
                   print  RSNM AT (WidthLim-RSNM:length,10).
                   local lm to 56-ClrMin-RSNM:length.
@@ -2739,7 +2910,7 @@ function HudFuction{
           }
           ELSE{ //hudop <> 5
            set HudOptsR[5] to"AUTO"+MODESHRT[AutoCurMode].
-           
+
               SETHUD().
               if DispInfo = 1 {
                 local lcl to "GRN".
@@ -2799,8 +2970,8 @@ function HudFuction{
               PRINT "                                                    " AT (0,7).
             print "                         " at (55,acp+3).
           //#region print if change
+          local acpadd to 0.
           IF HUDOP <> HUDOPPREV or forcerefresh > 0{
-
              IF HUDOP <> 5 PRINT HudOptsL[1][HUDOP] AT (0,1). PRINT HudOptsR[1][HUDOP] AT (widthlim-11,1).
               PRINT HudOptsL[2][HUDOP] AT (0,2). PRINT HudOptsR[2][HUDOP] AT (widthlim-6,2).
               PRINT HudOptsL[3][HUDOP] AT (0,5). PRINT HudOptsR[3][HUDOP] AT (widthlim-8,5).
@@ -2821,20 +2992,20 @@ function HudFuction{
               else{//hudop <> 5
               PRINT PrvGRP AT (0,3).
               PRINT nxtGRP AT (0,7).
-                if hudop < 6 and AutoSetMode <> 1{      
+                if hudop < 6 and AutoCurMode <> 1{
                   if AutoSetAct > actnlist:length-1 set AutoSetAct to 1.  
                     print actnlist[AutoSetAct] AT (WidthLim-actnlist[AutoSetAct]:length,ACP).
-                    if AutoSetMode = 14 AND AutoValList[itemnumcur][TagNumCur] > 0 print STATUSOPTS[StsSelection] AT (WidthLim-STATUSOPTS[StsSelection]:length,acp+3). 
+                    if AutoCurMode = 14 AND AutoValList[itemnumcur][TagNumCur] > 0 {print STATUSOPTS[StsSelection] AT (WidthLim-STATUSOPTS[StsSelection]:length,acp+3). set acpadd to 1.}
                     else{
-                      if AutoSetMode = 6 {
+                      if AutoCurMode = 6 {
                         local rscnm to autoRscList[itemnumcur][TagNumCur].
                         if rscnm:istype("string") set rscnm to RscNum[rscnm].
                         local arsc to RscList[rscnm].
-                        print  arsc[1]+"("+ROUND(ship:resources[arsc[3]]:amount/arsc[2]*100,0)+"%)" AT (widthlim-5-arsc[1]:length,acp+3). }
+                        print  arsc[1]+"("+ROUND(ship:resources[arsc[3]]:amount/arsc[2]*100,0)+"%)" AT (widthlim-5-arsc[1]:length,acp+3). set acpadd to 1.}
                       else{
-                        if AutoSetMode = 15 AND PRscList:LENGTH > 0{
+                        if AutoCurMode = 15 AND PRscList:LENGTH > 0{
                           local ARSC to PRscList[autoRscList[itemnumcur][TagNumCur]][0].
-                          if itemnumcur = dcptag {print  arsc AT (widthlim-6-arsc:length,acp+3).}
+                          if itemnumcur = dcptag {print  arsc AT (widthlim-6-arsc:length,acp+3). set acpadd to 1.}
                         }
                       }
                     }
@@ -2848,7 +3019,7 @@ function HudFuction{
                print "    MORE" at (widthlim-8,12).
 
             }
-          }else{ IF AutoSetMode <> 1 {
+          }else{ IF AutoCurMode <> 1 {
             if AutoCurMode = 14 PRINT "   ON STATUS" AT (widthlim-12,acp+2).
             if autoTRGList[0][itemnumcur][TagNumCur] > 0{print "DELAY "+autoTRGList[0][itemnumcur][TagNumCur] AT (widthlim-6-autoTRGList[0][itemnumcur][TagNumCur]:tostring:length,acp+4).}else{print "            " at (widthlim-12,acp+4).}
           }
@@ -2882,12 +3053,17 @@ function HudFuction{
           //#endregion
           //#region alwaysprint
           //#region warnings and notiifications
-            if AutoDspList[hsel[2][1]][hsel[2][2]] < 0 and AutoDspList[0][hsel[2][1]][hsel[2][2]][0] <> 0 {
+          set LinkLock to 0.
+          if AutoDspList[0][hsel[2][1]][hsel[2][2]][0] <> 0 {
+            if AutoDspList[0][hsel[2][1]][hsel[2][2]][0]:tostring <> "0" {
               set ln14 to 2.
+              local TrgPrint to "".
               local splt to AutoDspList[0][hsel[2][1]][hsel[2][2]][0]:split("-").
-              if splt:length = 3 PRINTLINE("WONT START DETECTION UNTIL AFTER "+REMOVESPECIAL(ItemListHUD[splt[0]:tonumber]," ")+":"+Prttaglist[splt[0]:tonumber][splt[1]:tonumber]+" IS TRIGGERED","ORN",13).
-              if splt:length = 4 PRINTLINE("WILL TRIGGER WHEN "+REMOVESPECIAL(ItemListHUD[splt[0]:tonumber]," ")+":"+Prttaglist[splt[0]:tonumber][splt[1]:tonumber]+" IS TRIGGERED","YLW",13).
+              if splt:length = 3 {PRINTLINE("WONT START DETECTION UNTIL AFTER "+REMOVESPECIAL(ItemListHUD[splt[0]:tonumber]," ")+":"+Prttaglist[splt[0]:tonumber][splt[1]:tonumber]+" IS TRIGGERED","ORN",13). set TrgPrint to "WAIT 4 OTHER".set LinkLock to 1.}
+              if splt:length = 4 {PRINTLINE("WILL TRIGGER WHEN "+REMOVESPECIAL(ItemListHUD[splt[0]:tonumber]," ")+":"+Prttaglist[splt[0]:tonumber][splt[1]:tonumber]+" IS TRIGGERED","YLW",13). set TrgPrint to "LOCK 2 OTHER". set LinkLock to 2.}
+              print  TrgPrint AT (widthlim-TrgPrint:length,acp+4-linklock+acpadd).
             }
+          }
           if loadbkp = 2 {set line to 1. set isdone to 1.}
           if SAVEbkp = 2 {SaveAutoSettings(2). printline(" BACKUP FILE SAVED","CYN").  PRINTLINE("",0,13).  PRINTLINE("",0,14).  SET SAVEBKP TO 0. }
           if SHIP:status <> ShipStatPREV{
@@ -2905,7 +3081,7 @@ function HudFuction{
 
           LOCAL PRLCL TO 14.
           IF RUNAUTO <> 1 SET PRLCL TO 13.
-          if itemnumcur = LIGHTTAG AND TagNumCur = 1{
+          if (itemnumcur = LIGHTTAG AND TagNumCur = 1) or (itemnumcur = AGTAG AND TagNumCur = 2 and rowval <> 1){
             if loadbkp = 1  {IF file_exists(autofileBAK) print " CLICK ONE MORE TIME TO LOAD FROM BACKUP " at (1,PRLCL). ELSE print " NO BACKUP FILE TO LOAD FROM " at (1,PRLCL).}
             if SAVEbkp = 1  {print " CLICK ONE MORE TIME TO SAVE TO BACKUP " at (1,PRLCL).}
           }
@@ -2958,21 +3134,68 @@ function HudFuction{
                     local p to prtList[HudItem][hudtag][HudPrt].
                   if DispInfo = 11 {
                       IF HudItem = EngTag {
+                            IF p:HASMODULE("FSengineBladed"){ 
+                                LOCAL stat to getEvAct(pl[0],"FSengineBladed","Status",30).
+                                set hudopts[1][1] to "Engine Status:"+stat.
+                                set HudOpts[1][3] to "                Collective:"+round(getEvAct(pl[0],"FSengineBladed","collective",30),2)+"  ".
+                                set HudOpts[1][2] to "           RPM:"+round(getEvAct(pl[0],"FSengineBladed","current rpm",30),1)+"  ".                              
+                            }
+                            else{
+                                IF p:hasmodule("ModuleGimbal")  set HudOpts[1][3] to "                Gimbal:"+getstatus(HudItem,hudtag,3,1,-1)+"  ".
+                                local midtemp to "              Mode:"+getstatus(HudItem,hudtag,2,1,-1).
+                                local stat to getstatus(HudItem,hudtag,1,1,-1). 
+                                if stat = "off"{
+                                  IF GrpDspList[HudItem][hudtag] = 2 set stat to "on".
+                                  if p:hassuffix("ignition"){if p:ignition = TRUE set stat to "on".}
+                                  }
+                                set hudopts[1][1] to "Engine Status:"+stat.
+                                IF p:hasmodule("MultiModeEngine") set HudOpts[1][2] to midtemp.
+                            }
                         if BR =1{
-                          IF p:HASMODULE("ModuleEnginesFX"){ 
-                            set botrow to "Thrust Limit"+SetGauge(PrtList[HudItem][hudtag][1]:THRUSTLIMIT,1,widthlim-13).
+                        for p1 in pl{
+                          IF p1:HASMODULE("ModuleEnginesFX"){
+                            if p1:hassuffix("thrustlimit"){
+                                set botrow to "Thrust Limit"+SetGauge(PrtList[HudItem][hudtag][1]:THRUSTLIMIT,1,widthlim-13).
+                                break.
+                            }
                           }
+                        }
+                        IF p:HASMODULE("FSengineBladed"){ 
+                            SET BOTPREV TO "000".
+                            local md to "FSengineBladed".
+                            LOCAL MDE TO PROPModLst[0][MtrCur[5]].
+                            local ccc to PROPModLst[1][MtrCur[5]]:split("/").
+                            set MtrCur[0] to ccc[0]:tonumber.
+                            set MtrCur[1] to ccc[1]:tonumber.
+                            set MtrCur[2] to ccc[2]:tonumber.
+                                if p:hasmodule(MD){
+                                    if p:getmodule(MD):hasfield(MDE){
+                                        local AAA to getEvAct(pl[0],MD,MDE,30).
+                                        set HudOpts[1][3] TO "". set HudOpts[1][2] TO "".
+                                        print MDE at (WidthLim-MDE:length,10).
+                                        LOCAL localguage TO (AAA/MtrCur[1])*100.
+                                        SET BOTROW TO MDE+SetGauge(localguage,1,widthlim-4-MDE:length).
+                                        set HudOpts[1][1] to MDE+":"+ROUND(AAA,2)+"          ".
+                                    }
+                                }  
+                        }                        
                         }else{
                           if p:hassuffix("fuelflow") and p:hassuffix("maxfuelflow"){
                             set botrow to "Fuel Flow"+SetGauge(round((p:fuelflow/p:maxfuelflow)*100,1),1,widthlim-9).
                           }
+                        IF p:HASMODULE("FSengineBladed"){ 
+                            set botrow to "Current RPM"+SetGauge(getEvAct(pl[0],"FSengineBladed","current rpm",30)/1000*100,1,widthlim-11).
                         }
-                        IF p:hasmodule("ModuleGimbal")  set HudOpts[1][3] to "                Gimbal:"+getstatus(HudItem,hudtag,3,1,-1)+"  ".
-                        local midtemp to "              Mode:"+getstatus(HudItem,hudtag,2,1,-1).
-                        local stat to getstatus(HudItem,hudtag,1,1,-1).
-                        if stat = "off" and GrpDspList[HudItem][hudtag] = 2 set stat to "on".
-                        set hudopts[1][1] to "Engine Status:"+stat.
-                        IF p:hasmodule("MultiModeEngine") set HudOpts[1][2] to midtemp.
+                        }
+                      }
+                      ELSE {
+                        LOCAL TMP TO LIST(0,0,0).
+                        set HudOpts[1][3] to getstatus(HudItem,hudtag,1,1, -1).  SET TMP[0] TO HudOpts[1][1]+HudOpts[1][2]+HudOpts[1][3]. 
+                        set HudOpts[1][3] to getstatus(HudItem,hudtag,2,1, -10). SET TMP[1] TO HudOpts[1][1]+HudOpts[1][2]+HudOpts[1][3].
+                        set HudOpts[1][3] to getstatus(HudItem,hudtag,3,1, -10). SET TMP[2] TO HudOpts[1][1]+HudOpts[1][2]+HudOpts[1][3].
+                        set HudOpts[1][1] to TMP[0]+"           ".
+                        set HudOpts[1][2] to TMP[1]+"           ".
+                        set HudOpts[1][3] to TMP[2].
                       }
                     }
                   else{
@@ -3392,7 +3615,7 @@ function HudFuction{
               }else set forcerefresh to 1.
    }
    //#endregion 
-   function ToggleGroup{//togglegroup(item number, tag number, option, auto).
+    function ToggleGroup{//togglegroup(item number, tag number, option, auto).
       local parameter Inum, tagnum, optnin, auto is 0.
       if DbgLog > 0 {
         local nd to " MANUAL".
@@ -3404,16 +3627,19 @@ function HudFuction{
         IF OPTNIN = 0{
           set AutoDspList[Inum][TagNum] to abs(AutoDspList[Inum][TagNum]).
           set AutoDspList[0][Inum][TagNum][0] to 0.
-          UpdateAutoTriggers(autoRstList[Inum][TagNum],AutoDspList[Inum][TagNum],Inum,TagNum).
+          local udo to 1. 
+          if AutoValList[hsel[2][1]][hsel[2][2]] < 0 SET UDO TO 2.
           PRINTQ:PUSH(REMOVESPECIAL(ItemListHUD[Inum]," ")+":"+Prttaglist[Inum][TagNum]+" DETECTION NOW ACTIVE"+"<sp>"+"GRN"). 
-          if DbgLog > 0 {
-            log2file("       UpdateAutoTriggers (autoRstList[Inum][TagNum],AutoDspList[Inum][TagNum],Inum,TagNum)." ).
-            log2file("         "+"UpdateAutoTriggers ("+autoRstList[Inum][TagNum]+","+AutoDspList[Inum][TagNum]+","+Inum+","+TagNum+") ").
-          }
+          if DbgLog > 1 log2file("       UpdateAutoTriggers (UDO("+UDO+"),AutoDspList[Inum][TagNum]("+AutoDspList[Inum][TagNum]+"),Inum("+inum+"),TagNum("+tagnum+"))." ).
+          UpdateAutoTriggers(UDO,AutoDspList[Inum][TagNum],Inum,TagNum).
           RETURN.
         }
         IF OPTNIN = -1{
           set OPTNIN to AutoTRGList[Inum][tagnum].
+        }
+        IF OPTNIN = -2{
+          IF AutoDspList[0][INUM][TAGNUM]:LENGTH > 1 LINKCHECK(inum, tagnum).
+          Return.
         }
       //#region toggle group settings
       set checktime to time:seconds.
@@ -3457,19 +3683,18 @@ function HudFuction{
         LOCAL PL2 TO PL:COPY.
         for pt in pl2{
           if not pt:tostring:contains("tag="+tagname){
-            if DbgLog > 0 log2file("        "+PT:TOSTRING+" REMOVED FOR TAG MISMATCH("+"tag="+tagname+")" ).
+            if pt <> core:part {if DbgLog > 0 log2file("        "+PT:TOSTRING+" REMOVED FOR TAG MISMATCH(tag="+tagname+")" ).} else{if DbgLog > 0 log2file("         PART GONE").}
             set cnt to cnt+1.
             PL:REMOVE(PL:FIND(pt)).
-          } //else break.
+          }else{if DbgLog > 1 log2file("         PART GOOD(tag="+tagname+")" +PT:TOSTRING).}
         }
       if cnt > pl2:length-1 OR PL:LENGTH = 0{
-        if DbgLog > 0 log2file("      TAG REMOVED FOR TAG MISMATCH("+"tag="+tagname+")" ).
+        if DbgLog > 0 log2file("      TAG REMOVED FOR TAG MISMATCH(tag="+tagname+")" ).
        return.
       }
       }
-      if autoTRGList[0][inum][tagnum] < 0 return.
+      if autoTRGList[0][inum][tagnum] < 0 return. 
       if autoTRGList[0][inum][tagnum] > 0 and auto = 1 set evact to 4.
-      //if not PrtListcur:contains(p) return.
       //#region TOGGLE CHECK
       if inum > 0{
         if debug > 0 and optnin < 4 PRINTLINE(optnin+"-"+Module1+"-"+Event1On+"-"+Event1Off,0,13).
@@ -3487,7 +3712,6 @@ function HudFuction{
             if  ccc[3] > 0 {
               clearev().
               SetTrgVars(CCC,-1).
-              global tstccc2 to ccc.
               if ccc[0] = "moduleanimategeneric" {
                 set Event1Off to Event1On. 
                 set fld to " ".             
@@ -3595,11 +3819,51 @@ function HudFuction{
               local loff to list("off","shutdown").
               local Elst to engModAlt.
               if p:hassuffix("modes") if P:modes:length > 1 {if not P:primarymode set Elst to list("MultiModeEngine").}
-              if p:hassuffix("ignition"){if p:ignition = false set loff to list(""). else set lon to list("").}           
+              if p:hassuffix("ignition"){if p:ignition = false set loff to list(""). else set lon to list("").}  
+              if p:hasmodule("FSengineBladed"){if getEvAct(pl[0],"FSengineBladed","Status",30):contains("inactive") set loff to list(""). else set lon to list("").}
               local ccc to getactions("Actions",Elst,inum, tagnum,optnin,3,lon,loff).
               if  ccc[3] > 0 SetTrgVars(CCC,-1).
             }
-            IF optnin = 3 {set fld to "GIMBAL". set op to "False".}
+            if optnin = 2 {
+                if p:hasmodule("FSengineBladed"){
+                    IF ROWVAL = 1{ set PrintOverride to -1.
+                     if getEvAct(pl[0],"FSengineBladed","thr keys",30)  = True {getEvAct(pl[0],"FSengineBladed","thr keys",40,false). 
+                     PRINTQ:PUSH(" "+prtTagList[INUM][tagnum]+" THROTTLE KEY RESPONSE SET TO Off  "+"<sp>"+"RED").
+                     }
+                        else{
+                             getEvAct(pl[0],"FSengineBladed","thr keys",40,True).
+                             PRINTQ:PUSH(" "+prtTagList[INUM][tagnum]+" THROTTLE KEY RESPONSE SET TO ON  "+"<sp>"+"CYN").
+                             }
+                    }ELSE{
+                        local ccc to getactions("Actions",list("FSengineBladed"),inum, tagnum,optnin,3,"hover").
+                        if  ccc[3] > 0 SetTrgVars(CCC,-1).
+                }
+                }
+                if p:hasmodule("FSswitchEngineThrustTransform"){
+                        local ccc to getactions("Actions",list("FSswitchEngineThrustTransform"),inum, tagnum,OPTNIN,3,list("reverse"),list("normal")).
+                        if  ccc[3] > 0 SetTrgVars(CCC,-1).
+                        if ccc[3] = 2  PRINTQ:PUSH(" "+prtTagList[INUM][tagnum]+" THRUST SET TO NORMAL  "+"<sp>"+"CYN").
+                        if ccc[3] = 1  PRINTQ:PUSH(" "+prtTagList[INUM][tagnum]+" THRUST SET TO REVERSE "+"<sp>"+"RED"). 
+                        set PrintOverride to -1.
+                }
+            }
+            IF optnin = 3 {
+                    if p:hasmodule("FSengineBladed"){
+                      set PrintOverride to -1.
+                        IF rowval = 1 { 
+                            if getEvAct(pl[0],"FSengineBladed","thr state",30)  = True {getEvAct(pl[0],"FSengineBladed","thr state",40,False). 
+                            PRINTQ:PUSH(" "+prtTagList[INUM][tagnum]+" THROTTLE STATE RESPONSE SET TO Off  "+"<sp>"+"RED").}
+                                else {getEvAct(pl[0],"FSengineBladed","thr state",40,True).
+                                PRINTQ:PUSH(" "+prtTagList[INUM][tagnum]+" THROTTLE STATE RESPONSE SET TO ON   "+"<sp>"+"CYN").}
+                        }else{
+                            if getEvAct(pl[0],"FSengineBladed","steering",30)  = True {getEvAct(pl[0],"FSengineBladed","steering",40,False). 
+                            PRINTQ:PUSH(" "+prtTagList[INUM][tagnum]+" ROTOR STEERING SET TO Off  "+"<sp>"+"RED").}
+                                else {getEvAct(pl[0],"FSengineBladed","steering",40,True).
+                                PRINTQ:PUSH(" "+prtTagList[INUM][tagnum]+" ROTOR STEERING SET TO ON   "+"<sp>"+"CYN").}  
+                        }
+                    }
+                    else{set fld to "GIMBAL". set op to "False".}
+            }
           }//}
           else{
           if inum = dcptag { 
@@ -3726,6 +3990,11 @@ function HudFuction{
                       LOCAL ZZ TO " ON". IF dbglog = 0 SET ZZ TO " OFF". if dbglog = 2 set ZZ to " VERBOSE".  if dbglog = 3 set ZZ to " OVERKLL".
                       PRINTQ:PUSH(" LOGGING SET TO "+ZZ+"<sp>"+"WHT"). set PrintOverride to -1.
                     }
+                  }else{
+                    if tagnum = 2 and auto = 0{
+                      SET LOADBKP TO LOADBKP+1.
+                      set forcerefresh to 1.
+                    }
                   }
                 IF PRINTQ:LENGTH > 0 and printpause = 0 PrintTheQ().
                 RETURN.
@@ -3736,8 +4005,16 @@ function HudFuction{
                   listautosettings().
                 }
                 if tagnum = 2{
-                  set refreshRateFast to CHANGESEL(10,refreshRateFast ,"+").
-                  PRINTQ:PUSH(" INFO REFRESH RATE SET TO "+refreshRateFast+"<sp>"+"WHT"). set PrintOverride to -1.
+                  if rowsel = 1{
+                    set refreshRateFast to CHANGESEL(10,refreshRateFast ,"+").
+                    PRINTQ:PUSH(" INFO REFRESH RATE SET TO "+refreshRateFast+"<sp>"+"WHT"). set PrintOverride to -1.
+                  }else{
+                    if auto = 0{
+                      set SAVEBKP to SAVEBKP+1.
+                      set forcerefresh to 1.
+                      RETURN.
+                    }
+                  }
                 }
                 if tagnum = 10 {
                   set DEBUG to CHANGESEL(2,DEBUG ,"+").
@@ -4181,7 +4458,6 @@ function HudFuction{
               PRINTQ:PUSH(tagname+" "+autoTRGList[0][inum][tagnum]+" SECOND DELAY"+"<sp>"+"YLW").
               if DbgLog > 0 log2file("     "+tagname+" "+autoTRGList[0][inum][tagnum]+" SECOND DELAY").
               IF PRINTQ:LENGTH > 0 and printpause = 0 PrintTheQ().
-
               Return.
             }
           IF PRINTQ:LENGTH > 0 {IF printpause = 0 PrintTheQ().}
@@ -4291,6 +4567,21 @@ function HudFuction{
           //#endregion 
           RETURN.
       }
+    function TopHugTrig{
+        local parameter HudNum.
+        local trgnum to enghud[hudnum].
+        local ActNum to 1.
+        if trgnum > 100 {set actnum to trgnum - 100. set trgnum to enghud[hudnum-1].}
+        togglegroup(engtag,TrgNum,ActNum).
+    }
+    function CheckAGs{
+      if dbglog > 1 log2file("    CheckAGs").
+          for i in range (0,AgState:length) 
+          if AgState[i] <> AgSPrev[i] {
+            togglegroup(agtag,i+1,-2,2).
+          }
+          set AgSPrev to AgState:copy.
+}
     //#region meter set
    function updatemeter{
         set sensordisp to list().
@@ -4310,12 +4601,9 @@ function HudFuction{
         if senselist[0] = 1 and AutoValList[0][0][3][12] <> 2 {sensordisp:add("ACCL:"+round(ship:sensors:acc:mag,1)+" G").}
         if senselist[2] = 1 and AutoValList[0][0][3][9]  <> 2 {sensordisp:add("SUN :"+round(SHIP:SENSORS:LIGHT,2)+" EXP").}
         sensordisp:add("                                        ").
-
-        //add spd aand alt lock info here
         local lim to 7-ln14.
         IF sensordisp:LENGTH < lim {sensordisp:INSERT(0,"                                        "). SET LIM TO LIM+1.}
         for ln in range (0, lim){if ln < sensordisp:length print sensordisp[ln]+"     " at (1,ln+8).  else {if ln+9 < lim+8 print "                                        " at (1,ln+8). break.}
-        //IF dbglog > 0 log2file("    LIM:"+(LIM)+" LN:"+(LN)+" LIM:"+(LIM+8)+" LN:"+(LN+9)+" LENGTH:"+sensordisp:LENGTH+" ln14:"+ln14).
         }
         if dcptag <> 0 and hsel[2][1] = dcptag and fuelmon = 1 {
           IF DCPRes = 0 {
@@ -4333,7 +4621,6 @@ function HudFuction{
             if lcl:istype("string") and HudOpts[1][1] <> "No Part"{
               PRINTLINE("("+fmtr+"%)"+GetFuelLeft(DcpPrtList[hsel[2][2]],0,lm,RscSelection),lcl).
               }
-             ///print getcolor("("+fmtr+"%):"+GetFuelLeft(DcpPrtList[hsel[2][2]],1,lm),lcl):padleft(79) at (1,17).
         }
     }
    function MtrColor{
@@ -4356,7 +4643,11 @@ function HudFuction{
               SET HUDOP TO 4.
               if hsel[2][1] = DCPtag{SET HUDOP TO 10. set hudoptsl[1][10] to "RSRC   ". set hudoptsl[3][10] to "RSRC   ".SET HDXT TO "    ".}
               else{
-              if hsel[2][1] = engtag{SET HUDOP TO 3. }
+                if hsel[2][1] = engtag{SET HUDOP TO 3.   
+                    if CurrentPart:hasmodule("FSengineBladed"){
+                        set hudoptsl[1][10] to "LIMIT  ". set hudoptsl[3][10] to "LIMIT  ".SET HDXT TO "OPTN". SET HUDOP TO 10.
+                    }
+                }
               else{
               if hsel[2][1] = scitag OR hsel[2][1] = ISRUtag{ SET HUDOP TO 6.}
               else{
@@ -4366,7 +4657,12 @@ function HudFuction{
               else{
               if hsel[2][1] = WMGRtag{set HUDOP TO 9.}
               else{
-              if hsel[2][1] = CHUTETAG or hsel[2][1] = RBTTag or  hsel[2][1] = BDPTag or (hsel[2][1] = GearTag AND CurrentPart:hasmodule("ModuleWheelDeployment") ){set hudop to 10. set hudoptsl[1][10] to "LIMIT  ". set hudoptsl[3][10] to "LIMIT  ".SET HDXT TO "OPTN".}
+              if hsel[2][1]  = CHUTETAG 
+              or hsel[2][1]  = RBTTag 
+              or  hsel[2][1] = BDPTag 
+              or (hsel[2][1] = GearTag AND CurrentPart:hasmodule("ModuleWheelDeployment")){
+                set hudop to 10. set hudoptsl[1][10] to "LIMIT  ". set hudoptsl[3][10] to "LIMIT  ".SET HDXT TO "OPTN".
+                }
               else{
               if hsel[2][1] = Flytag{set hudop to 10.
                 if ItmTrg = " SET TRGT "{set hudoptsl[1][10] to "TARGET ". set hudoptsl[3][10] to "TARGET ".SET HDXT TO "    ".}
@@ -4436,16 +4732,18 @@ function HudFuction{
               if dbglog > 2 log2file("      "+resource+" AMT:"+gauge+" DCPGONE:"+DCPGone). 
               return gauge.
     }
-   function adjust_thrust {
+   function adjust_thrust{
      LOCAL parameter PrtsIN, amount, direction, op is 1.
       LOCAL PrtsIN2 to PrtsIN:sublist(1, PrtsIN:length).
      if op =1{
         for engine in PrtsIN2 {
-          set CurLim to engine:thrustlimit.
-          if direction = "+" {set NewLim to CurLim + amount.
-          } else {set NewLim to CurLim - amount.}
-          set NewLim to max(0, min(100, NewLim)).
-          set engine:thrustlimit to NewLim.
+            if engine:hassuffix("thrustlimit"){
+            set CurLim to engine:thrustlimit.
+            if direction = "+" {set NewLim to CurLim + amount.
+            } else {set NewLim to CurLim - amount.}
+            set NewLim to max(0, min(100, NewLim)).
+            set engine:thrustlimit to NewLim.
+            }
         }
       }
      if op =2{
@@ -4464,7 +4762,6 @@ function HudFuction{
         log2file("    ADJUST METER:"+" amount:"+amount+" direction:"+direction+" op:"+op+" inum:"+inum+" limitlow:"+limitlow+" limit:"+limit).
         log2file("        "+LISTTOSTRING(PrtsIN)).
         }
-      ///print PrtsIN+"-"+ amount+"-"+ direction+"-"+ op+"-"+ inum+"-"+ limitlow+"-"+ limit.
       LOCAL PrtsIN2 to PrtsIN:sublist(1, PrtsIN:length).
       local opset to op.
       local optn1 to opset*3-2.
@@ -4505,7 +4802,7 @@ function HudFuction{
 }
    function SetGauge{ //returns gauge of 0-100 percent set to fit after row items 1 and 2. 
       local parameter pct, row, Gmax is 0.
-      //if dbglog > 2 log2file("    SETGUAGE: pct:"+pct).
+      if dbglog > 2 log2file("        SETGUAGE: pct:"+pct).
       local gauge to ":".
       if pct <> "                                    "{
       if pct:typename <> "Scalar"{
@@ -4777,6 +5074,7 @@ function HudFuction{
    function clearauto{
     local parameter item, tag, updn, opt, RSM IS autoRstList[item][tag].
     LOCAL UPDN2 TO 0.
+    set opt to abs(opt).
     if DbgLog > 0 {
       log2file("      CLEAR AUTO-:"+itemlist[item]+":"+prttaglist[item][tag]).
       if DbgLog > 1 {
@@ -4785,8 +5083,8 @@ function HudFuction{
         log2file("        AutoValList[item][tag]("+AutoValList[item][tag]+"):"). 
         local lud to "OVER".
         if updn = 2 set lud to "UNDER".
-        if updn = 2 set lud to "OVER-OFF".
-        if updn = 2 set lud to "UNDER-OFF".
+        if updn = 3 set lud to "OVER-OFF".
+        if updn = 4 set lud to "UNDER-OFF".
         log2file("        AutoLst["+MODELONG[opt]+"("+opt+")]["+lud+"("+updn+")]["+itemlist[item]+"("+item+")]    :"+LISTTOSTRING(AutoLst[opt][updn][item]) ).
         if AutotagLstUP[item]:length > 1 log2file("         AutotagLstUP["+item+"]:"+LISTTOSTRING(AutotagLstUP[item]) ).
         if AutotagLstDN[item]:length > 1 log2file("         AutotagLstDN["+item+"]:"+LISTTOSTRING(AutotagLstDN[item]) ).
@@ -4841,15 +5139,9 @@ function HudFuction{
             if AutoItemLst[opt][3]:contains(item) {IF AutotagLstNAUP[item]:length = 0 AutoItemLst[opt][3]:remove(AutoItemLst[opt][3]:find(item)).}
             if AutoItemLst[opt][4]:contains(item) {IF AutotagLstNADN[item]:length = 0 AutoItemLst[opt][4]:remove(AutoItemLst[opt][4]:find(item)).}
      }
-
-
-
-
       IF AutoLst[opt][updn][item]:LENGTH > 1 AND AutoLst[opt][updn][item]:CONTAINS(0) AutoLst[opt][updn][item]:REMOVE(AutoLst[opt][updn][item]:SUBLIST(1,AutoLst[opt][updn][item]:LENGTH):FIND(0)+1).
-      //IF AutoLst[opt][updn][item]:LENGTH > 1 set AutoLst[opt][updn][item] to DeDup(AutoLst[opt][updn][item]).
-    //if RSM = 1 {UpdateAutoTriggers(updn,opt,item,tag). set AutoDspList[item][tag] to 1.} else 
     if RSM = 1 {set AutoDspList[item][tag] to 1.} else 
-    if RSM > 1 UpdateAutoTriggers(updn2,OPT,item,tag).
+    if RSM > 1 AND UPDN2 > 0 UpdateAutoTriggers(updn2,OPT,item,tag).
     if item = dcptag set DcpPrtList[tag] to list(0,"").
     set SaveFlag to 1. 
     UpdateAutoMinMax(opt).
@@ -4865,9 +5157,10 @@ function HudFuction{
    function TriggerAuto{ //and check auto state
       local parameter LstIN, md, ThrVal, opt is 1, opt2 is 1.
       if DbgLog > 0 {
-        if opt2 <> 3 log2file("TRIGGERAUTO md:"+modelong[md]+"("+md+") ThrVal:"+ThrVal+" opt:"+opt+" opt2:"+opt2 ).
-        else log2file("CHECKSTATE md:"+modelong[md]+"("+md+") status:"+STATUSOPTS[ThrVal]+"("+thrval+")"+" opt:"+opt+" opt2:"+opt2 ).
-        if dbglog > 1 log2file("    LstIN:"+LISTTOSTRING(Lstin)).
+        if opt2 < 2 log2file("TRIGGERAUTO md:"+modelong[md]+"("+md+") ThrVal:"+ThrVal+" opt:"+opt+" opt2:"+opt2 ). else
+        if opt2 = 2 and dbglog > 1 log2file("CHECK-RSC   md:"+modelong[md]+"("+md+") ThrVal:"+ThrVal+" opt:"+opt+" opt2:"+opt2 ). else
+        if opt2 = 3 and dbglog > 1 log2file("CHECKSTATE  md:"+modelong[md]+"("+md+") status:"+STATUSOPTS[ThrVal]+"("+thrval+")"+" opt:"+opt+" opt2:"+opt2 ).
+        if dbglog > 1 and opt2 < 2 log2file("    LstIN:"+LISTTOSTRING(Lstin)).
       }
       local AbsThr to abs(ThrVal).
       set cnt to 0.   
@@ -4879,19 +5172,26 @@ function HudFuction{
             Local savedVal TO AutoValList[I][T].
             local trg to 0. local act to 0. 
             local AbsVal to abs(savedVal).
-            if DbgLog > 1 {
+            if DbgLog > 1 and opt2 < 2{
               log2file("      "+itemlist[I]+"("+I+") "+prtTagList[i][t]+"("+T+")").
               log2file("        AbsVal:"+AbsVal+" "+" savedVal:"+savedVal+" AbsThr:"+AbsThr).
               log2file("        autoRstList[I][T]:"+autoRstList[I][T]).
               log2file("        AutoRscList[I][T]:"+AutoRscList[I][T]).
+              log2file("        AutoDspList[I][T]:"+AutoDspList[I][T]).
             }
             if autoRstList[I][T] > 2 and autoRstList[I][T] - opt = 2 set act to 1.
             if autoRstList[I][T] < 3 set act to 1.
             if AutoDspList[I][T] = md{
               if opt2 = 2{
                 if AutoRscList[I][T]<>0{
-                  if savedVal > -0.0001 and (ship:resources[RscNum[AutoRscList[I][T]]]:amount/ship:resources[RscNum[AutoRscList[I][T]]]:capacity*100) > autolst[md][opt][I][T]-.0001 set trg to 1.
-                  if savedVal <  0.0001 and (ship:resources[RscNum[AutoRscList[I][T]]]:amount/ship:resources[RscNum[AutoRscList[I][T]]]:capacity*100) < autolst[md][opt][I][T]+.0001 set trg to 2.
+                  local RscAmt to ship:resources[RscNum[AutoRscList[I][T]]]:amount/ship:resources[RscNum[AutoRscList[I][T]]]:capacity*100.
+                  local ZAdj to 0. if savedval = 0 set zadj to 0.0001.
+                  if RscAmt > 1 set RscAmt to round(RscAmt,0).
+                  if savedVal > -0.0001 {if RscAmt > AbsVal-zadj set trg to 1. set dpr to " > ".}
+                  if savedVal <  0.0001 {if RscAmt < AbsVal+zadj set trg to 2. set dpr to " < ".}
+                  IF DbgLog > 1 and TRG = 1 and md <> 14 log2file("       if SavedVal ("+savedval+") >  -0.0001 and "+" rsc:"+AutoRscList[I][T]+"("+RscAmt+")  > AbsVal-"+zadj+"("+(AbsVal-zadj)+") trg:"+TRG+"="+OPT+"--ACT:"+ACT).
+                  IF DbgLog > 1 and TRG = 2 and md <> 14 log2file("       if SavedVal ("+savedval+") <   0.0001 and "+" rsc:"+AutoRscList[I][T]+"("+RscAmt+")  < AbsVal+"+zadj+"("+(AbsVal+zadj)+") trg:"+TRG+"="+OPT+"--ACT:"+ACT).
+                  IF DbgLog > 2 and TRG = 0 and md <> 14 log2file("       ITEM:"+itemlist[i]+" TAG:"+prttagList[i][t]+" rsc:"+AutoRscList[I][T]+"("+RscAmt+")"+dpr+absval).
                 }}
                 else{
               If opt2 = 3{
@@ -4906,10 +5206,9 @@ function HudFuction{
                     }
                   }
               else{
-                if DbgLog > 1 and md <> 14 log2file("       if AbsVal("+AbsVal+") = AbsThr("+AbsThr+") and savedVal("+savedVal+")").
                 if AbsVal = AbsThr and savedVal > -0.0001 and savedVal > AbsThr-.0001 set trg to 1.
                 if AbsVal = AbsThr and savedVal <  0.0001 and savedVal < 0-AbsThr+.0001 set trg to 2.
-              }
+                if DbgLog > 1 and md <> 14 log2file("       if AbsVal("+AbsVal+") = AbsThr("+AbsThr+") and savedVal("+savedVal+") trg:"+TRG+"="+OPT+"--ACT:"+ACT).}
             }}
               if trg = opt {if act = 1 ToggleGroup(i,t,AutoTRGList[I][T],1). ClearAuto(i,t,opt,AutoDspList[I][T]). UPDATEHUDOPTS().}
           }
@@ -4960,7 +5259,6 @@ function HudFuction{
               if po = 1 WaitFor(15,1).
             }
           }
-          
         }
         if plst2:length > 0 WaitFor(15,1).
             local function pout{
@@ -4986,8 +5284,8 @@ function HudFuction{
                 if autoTRGList[0][itmP][tgP] > 0 {SET DelayPrint TO " WAIT "+autoTRGList[0][itmP][tgP]+" THEN".} ELSE SET DelayPrint TO "".
                 if AutoDspList[itmP][tgP] < 0 and AutoDspList[0][itmP][tgP][0]:tostring <> "0"{
                   local splt to AutoDspList[0][itmP][tgP][0]:split("-").
-                  if splt:length = 3 set  wt4 to "HOLD4".
-                  if splt:length = 4 set  wt4 to "LOCK2".
+                  if splt:length = 3 set  wt4 to "HOLD4 ".
+                  if splt:length = 4 set  wt4 to "LOCK2 ".
                 }
                 if AutoDspList[itmp][TgP] < 0 and AutoDspList[0][itmp][TgP][0] <> 0{
                   local splt to AutoDspList[0][itmp][TgP][0]:split("-").                  
@@ -5048,19 +5346,15 @@ function HudFuction{
       buttons:setdelegate(8,button8@).
     clearscreen.
     return.
-    
     }
     //#endregion
-  
     //MAINLOOP
     //#region buttons 
-    set v0:wave to "sawtooth".
-    
     function button0{if BtnActn=0{set BtnActn to 1. if ENG[1] <> EmptyHud{if hudop = 5{
       set dctnmode to ADDMAX(dctnmode,1,0,2).}
-    else{.togglegroup(engtag,enghud[0],1).}}
+    else{TopHugTrig(0).}}
     set buttonRefresh to 2.}set BtnActn to 0. updatehudSlow().}  buttons:setdelegate(0,button0@).
-    
+
     function button1{if BtnActn=0{set BtnActn to 1. if ENG[2] <> EmptyHud{if hudop = 5{
       if dctnmode = 0{
       local lmt to 2. 
@@ -5072,7 +5366,7 @@ function HudFuction{
         SET HDTag TO 1.
       }
        UPDATEHUDOPTS().}
-      else{togglegroup(engtag,enghud[0],2).}}
+      else{TopHugTrig(1).}}
       set buttonRefresh to 2.}set BtnActn to 0. updatehudSlow().}  buttons:setdelegate(1,button1@).
     
     function button2{if BtnActn=0{set BtnActn to 1. if ENG[3] <> EmptyHud{if hudop = 5{
@@ -5084,18 +5378,18 @@ function HudFuction{
         SET HDTag TO CHANGESEL(HudOpts[2][2][0], HDTag ,"+").
       }
       UPDATEHUDOPTS().}
-      else{togglegroup(engtag,enghud[1],1).}}
+      else{TopHugTrig(2).}}
       set buttonRefresh to 2.}set BtnActn to 0. updatehudSlow().
     }buttons:setdelegate(2,button2@).
     
     function button3{if BtnActn=0{set BtnActn to 1. if ENG[4] <> EmptyHud{if hudop = 5{
       if h5mode = 1 set h5mode to 0. else set h5mode to 1.       
-      UPDATEHUDOPTS().} //SET delay to ADDMAX(delay,1,0,10).
-      else{togglegroup(engtag,enghud[1],2).}}set buttonRefresh to 2.}set BtnActn to 0. updatehudSlow().}  buttons:setdelegate(3,button3@).
+      UPDATEHUDOPTS().} 
+      else{TopHugTrig(3).}}set buttonRefresh to 2.}set BtnActn to 0. updatehudSlow().}  buttons:setdelegate(3,button3@).
     
-    function button4{if BtnActn=0{set BtnActn to 1. if ENG[5] <> EmptyHud{if hudop = 5{SET AutoRscList[0][EnabSel] TO CHANGESEL(2, AutoRscList[0][EnabSel] ,"+"). UPDATEHUDOPTS().}else{togglegroup(engtag,enghud[2],1).}}set buttonRefresh to 2.}set BtnActn to 0. updatehudSlow().}  buttons:setdelegate(4,button4@).
+    function button4{if BtnActn=0{set BtnActn to 1. if ENG[5] <> EmptyHud{if hudop = 5{SET AutoRscList[0][EnabSel] TO CHANGESEL(2, AutoRscList[0][EnabSel] ,"+"). UPDATEHUDOPTS().}else{TopHugTrig(4).}}set buttonRefresh to 2.}set BtnActn to 0. updatehudSlow().}  buttons:setdelegate(4,button4@).
     
-    function button5{if BtnActn=0{set BtnActn to 1. if ENG[7] <> EmptyHud{if hudop = 5{SET EnabSel TO CHANGESEL(HudOpts[2][1][0], EnabSel,"+"). PRINT EmptyHud+EmptyHud AT (52,1). UPDATEHUDOPTS().}else{TOGGLE INTAKES.}}set buttonRefresh to 2.}set BtnActn to 0. updatehudSlow().}  buttons:setdelegate(5,button5@).
+    function button5{if BtnActn=0{set BtnActn to 1. if ENG[7] <> EmptyHud{if hudop = 5{SET EnabSel TO CHANGESEL(HudOpts[2][1][0], EnabSel,"+"). PRINT EmptyHud+EmptyHud AT (52,1). UPDATEHUDOPTS(). set buttonRefresh to 2.}else{TOGGLE INTAKES. set buttonRefresh to 3.}}}set BtnActn to 0. updatehudSlow().}  buttons:setdelegate(5,button5@).
     
     function button6{if BtnActn=0{set BtnActn to 1. set buttonRefresh to 1.}set BtnActn to 0. updatehudSlow().}  buttons:setdelegate(6,button6@).
     
@@ -5187,7 +5481,7 @@ function HudFuction{
         IF HUDOP = 5{
           set AutoDspList[hsel[2][1]][hsel[2][2]] to 1.
           SET AutoValList[hsel[2][1]][hsel[2][2]] TO 0.
-          SaveAutoSettings(). SETHUD().  UPDATEHUDOPTS().
+          SaveAutoSettings(). PRINTQ:PUSH(" AUTO FILE SAVED"+"<sp>"+"WHT"). SETHUD().  UPDATEHUDOPTS().
         }else{
           if hsel[2][1] = CntrlTag{
             set forcerefresh to 2. 
@@ -5279,7 +5573,10 @@ function HudFuction{
         if hsel[2][1] = scitag {set scipart to changesel(SciDsp:length,scipart,seldir).}else{
         if hsel[2][1] = DcpTag  {set RscSelection TO CHANGESEL(PRscList:length-1, RscSelection,seldir,0).
         }else{
-        if hsel[2][1] = EngTag  {adjust_thrust(PrtList[engtag][hsel[2][2]],5,seldir).}else{
+        if hsel[2][1] = EngTag  {
+            if prtlist[hsel[2][1]][hsel[2][2]][hsel[2][3]]:hasmodule("FSengineBladed") {adjust_Meter(prtlist[hsel[2][1]][hsel[2][2]], MtrCur[2], seldir, 4, hsel[2][1],  MtrCur[0], MtrCur[1]).}else{
+            adjust_thrust(PrtList[engtag][hsel[2][2]],5,seldir).}
+        }else{
         if hsel[2][1] = RBTTag  {
           if prtlist[hsel[2][1]][hsel[2][2]][hsel[2][3]]:hasmodule("ModuleRoboticController"){
             getEvAct(prtlist[hsel[2][1]][hsel[2][2]][hsel[2][3]],"ModuleRoboticController","Play Speed",40, plspd-5).}
@@ -5332,7 +5629,10 @@ function HudFuction{
         if hsel[2][1] = scitag {set scipart to changesel(SciDsp:length,scipart,seldir).}else{
         if hsel[2][1] = DcpTag  {set RscSelection TO CHANGESEL(PRscList:length-1, RscSelection,seldir,0).
         }else{
-        if hsel[2][1] = EngTag  {adjust_thrust(PrtList[engtag][hsel[2][2]],5,seldir).}else{
+        if hsel[2][1] = EngTag  {
+            if prtlist[hsel[2][1]][hsel[2][2]][hsel[2][3]]:hasmodule("FSengineBladed") {adjust_Meter(prtlist[hsel[2][1]][hsel[2][2]], MtrCur[2], seldir, 4, hsel[2][1],  MtrCur[0], MtrCur[1]).}else{
+            adjust_thrust(PrtList[engtag][hsel[2][2]],5,seldir).}
+        }else{
         if hsel[2][1] = RBTTag {
           if prtlist[hsel[2][1]][hsel[2][2]][hsel[2][3]]:hasmodule("ModuleRoboticController"){
             getEvAct(prtlist[hsel[2][1]][hsel[2][2]][hsel[2][3]],"ModuleRoboticController","Play Speed",40, plspd+5).}
@@ -5373,14 +5673,11 @@ function HudFuction{
             }
             if dctnmode > 0 {
               set AutoDspList[hsel[2][1]][hsel[2][2]] to 0-abs(AutoSetMode).
-              if dctnmode = 2 {
-                if not AutoDspList[0][HDItm][HDTag]:contains(rmstring2) {AutoDspList[0][HDItm][HDTag]:add(rmstring2).}
-                ELSE if not AutoDspList[0][HDItm][HDTag]:contains(rmstring)  {AutoDspList[0][HDItm][HDTag]:add(rmstring). }
-              }
+              if dctnmode = 2 {if not AutoDspList[0][HDItm][HDTag]:contains(rmstring2) {AutoDspList[0][HDItm][HDTag]:add(rmstring2).} set AutoDspList[hsel[2][1]][hsel[2][2]] TO 1.}
+                ELSE{          if not AutoDspList[0][HDItm][HDTag]:contains(rmstring)  {AutoDspList[0][HDItm][HDTag]:add(rmstring). }}
               local mde to 1-dctnmode.
                 set AutoDspList[0][hsel[2][1]][hsel[2][2]][0] to HDItm+"-"+HDtag+"-"+mde.
-                set AutoDspList[hsel[2][1]][hsel[2][2]] TO 1.
-            } 
+            }
             else{
                 set AutoDspList[hsel[2][1]][hsel[2][2]] to abs(AutoSetMode).
                 set AutoDspList[0][hsel[2][1]][hsel[2][2]][0] to 0.
@@ -5417,7 +5714,7 @@ function HudFuction{
             UPDATEHUDOPTS().
             }
       }else{
-      if hsel[2][1] = RBTtag or hsel[2][1] = BDPtag or hsel[2][1] = Geartag or hsel[2][1] = chutetag{
+      if hsel[2][1] = RBTtag or hsel[2][1] = BDPtag or hsel[2][1] = Geartag or hsel[2][1] = chutetag or (hsel[2][1] = engtag and prtlist[hsel[2][1]][hsel[2][2]][hsel[2][3]]:hasmodule("FSengineBladed")){
         set MtrCur[5] TO CHANGESEL(MtrCur[4],MtrCur[5],"+",MtrCur[3]).
         }else{
         if  hsel[2][1] = SciTag{togglegroup(hsel[2][1],hsel[2][2],4).
@@ -5460,12 +5757,13 @@ function HudFuction{
             local splt to AutoDspList[0][hsel[2][1]][hsel[2][2]][0]:split("-").
             set HDItm to splt[0]:tonumber. set HDItmB to HDItm.
             set HDTag to splt[1]:tonumber. set HDTagB to HDTag.
+            if splt:length = 3 set dctnmode to 1.
             if splt:length = 4 set dctnmode to 2.
           }
           set AutoSetAct to AutoTRGList[hsel[2][1]][hsel[2][2]].
           set AutoRstMode to autoRstList[hsel[2][1]][hsel[2][2]].
           if AutoValList[hsel[2][1]][hsel[2][2]] > 0 SET UDO TO 1. ELSE SET UDO TO 2.
-          ClearAuto(hsel[2][1],hsel[2][2],UDO,AutoDspList[hsel[2][1]][hsel[2][2]],1).
+          ClearAuto(hsel[2][1],hsel[2][2],UDO,AutoSetMode,1).
             IF dbglog > 0 {
                 log2file("EDIT AUTO TRIGGER "+ItemList[hsel[2][1]]+":"+prtTagList[hsel[2][1]][hsel[2][2]]).
               logauto().
@@ -5490,10 +5788,10 @@ function HudFuction{
         }
         ELSE{if warp = 0 SET THRTPREV TO ship:control:pilotmainthrottle.}
       }
-      IF PRINTQ:LENGTH > 0 {if printpause = 0 PrintTheQ(). set refreshRateSlow to 2. IF PRINTQ:LENGTH > 1 set refreshRateSlow to 1.}
+      IF PRINTQ:LENGTH > 0 {if printpause = 0 PrintTheQ(). set refreshRateSlow to 1.}
       if TIME:SECONDS - refreshTimer2 > refreshRateSlow-.01{
         if saveflag = 1 {
-          //if alltagged:length <> ship:ALLTAGGEDPARTS():length partcheck(). 
+          if alltagged:length <> ship:ALLTAGGEDPARTS():length partcheck(). 
           if STATUSSAVE:CONTAINS(SHIP:STATUS) or time:seconds-checktime > 90 SaveAutoSettings().
           }
         UPDATESTATUSROW(). 
@@ -5533,172 +5831,65 @@ function HudFuction{
 
       local trg to 0. 
       //check auto spd.
-      if checkautotrigger(SpdTrgsUP)  <> 0{
-        set trg to min(SpdTrgsUP[0],SpdTrgsUP[1]). 
-        if trg = 0 set trg to SpdTrgsUP[1]. 
-        if trg <> 0 and SHIP:VELOCITY:SURFACE:MAG > trg  {TriggerAuto(AutoitemLst[2][1],2,trg,1).
-        }
-      }
-      if checkautotrigger(SpdTrgsDN)  <> 0{
-        set trg to max(SpdTrgsDN[0],SpdTrgsDN[1]). 
-        if trg = 0 set trg to SpdTrgsDN[0]. 
-        if trg <> 0 and SHIP:VELOCITY:SURFACE:MAG < trg  {TriggerAuto(AutoitemLst[2][2],2,trg,2).
-        }
-      }
+      if checkautotrigger(SpdTrgsUP)  <> 0{set trg to min(SpdTrgsUP[0],SpdTrgsUP[1]).       if trg = 0 set trg to SpdTrgsUP[1]. if trg <> 0 and SHIP:VELOCITY:SURFACE:MAG > trg TriggerAuto(AutoitemLst[2][1],2,trg,1,1).}
+      if checkautotrigger(SpdTrgsDN)  <> 0{set trg to max(SpdTrgsDN[0],SpdTrgsDN[1]).       if trg = 0 set trg to SpdTrgsDN[0]. if trg <> 0 and SHIP:VELOCITY:SURFACE:MAG < trg TriggerAuto(AutoitemLst[2][2],2,trg,2,1).}
       //check auto ALT.
-      if checkautotrigger(ALTTrgsUP)  <> 0{
-        set trg to min(ALTTrgsUP[0],ALTTrgsUP[1]). 
-        if trg = 0 set trg to ALTTrgsUP[1]. 
-        if ship:altitude > trg  {TriggerAuto(AutoitemLst[3][1],3,trg,1).
-        }
-      }
-      if checkautotrigger(ALTTrgsDN)  <> 0{
-        set trg to max(ALTTrgsDN[0],ALTTrgsDN[1]). 
-        if trg = 0 set trg to ALTTrgsDN[0]. 
-        if ship:altitude < trg  {TriggerAuto(AutoitemLst[3][2],3,trg,2).
-        }
-      }
+      if checkautotrigger(ALTTrgsUP)  <> 0{set trg to min(ALTTrgsUP[0],ALTTrgsUP[1]).       if trg = 0 set trg to ALTTrgsUP[1]. if ship:altitude > trg  TriggerAuto(AutoitemLst[3][1],3,trg,1,1).}
+      if checkautotrigger(ALTTrgsDN)  <> 0{set trg to max(ALTTrgsDN[0],ALTTrgsDN[1]).       if trg = 0 set trg to ALTTrgsDN[0]. if ship:altitude < trg TriggerAuto(AutoitemLst[3][2],3,trg,2,1).}
       //check auto AGL.
-      if checkautotrigger(AGLTrgsUP)  <> 0{
-        set trg to min(AGLTrgsUP[0],AGLTrgsUP[1]). 
-        if trg = 0 set trg to AGLTrgsUP[1]. 
-        if ALT:RADAR > trg  {TriggerAuto(AutoitemLst[4][1],4,trg,1).
-        }
-      }
-      if checkautotrigger(AGLTrgsDN)  <> 0{
-        set trg to max(AGLTrgsDN[0],AGLTrgsDN[1]). 
-        if trg = 0 set trg to AGLTrgsDN[0]. 
-        if ALT:RADAR < trg{TriggerAuto(AutoitemLst[4][2],4,trg,2).
-        }
-      }
+      if checkautotrigger(AGLTrgsUP)  <> 0{set trg to min(AGLTrgsUP[0],AGLTrgsUP[1]).       if trg = 0 set trg to AGLTrgsUP[1]. if ALT:RADAR > trg  TriggerAuto(AutoitemLst[4][1],4,trg,1,1).}
+      if checkautotrigger(AGLTrgsDN)  <> 0{set trg to max(AGLTrgsDN[0],AGLTrgsDN[1]).       if trg = 0 set trg to AGLTrgsDN[0]. if ALT:RADAR < trg TriggerAuto(AutoitemLst[4][2],4,trg,2,1).}
       //check auto EC.
-      if checkautotrigger(ECTrgsUP)  <> 0{
-        set trg to min(ECTrgsUP[0],ECTrgsUP[1]). 
-        if trg = 0 set trg to ECTrgsUP[1]. 
-        if round(ship:electriccharge/ecmax*100,0) > trg  {TriggerAuto(AutoitemLst[5][1],5,trg,1).
-        }
-      }
-      if checkautotrigger(ECTrgsDN)  <> 0{
-        set trg to max(ECTrgsDN[0],ECTrgsDN[1]). 
-        if trg = 0 set trg to ECTrgsDN[0]. 
-        if round(ship:electriccharge/ecmax*100,0) < trg  {TriggerAuto(AutoitemLst[5][2],5,trg,2).
-        }
-      }
+      if checkautotrigger(ECTrgsUP)   <> 0{set trg to min(ECTrgsUP[0],ECTrgsUP[1]).         if trg = 0 set trg to ECTrgsUP[1].  if round(ship:electriccharge/ecmax*100,0) > trg  TriggerAuto(AutoitemLst[5][1],5,trg,1,1).}
+      if checkautotrigger(ECTrgsDN)   <> 0{set trg to max(ECTrgsDN[0],ECTrgsDN[1]).         if trg = 0 set trg to ECTrgsDN[0].  if round(ship:electriccharge/ecmax*100,0) < trg  TriggerAuto(AutoitemLst[5][2],5,trg,2,1).}
       //check auto Rsc.
-      if  checkautotrigger(RscTrgsUP) <> 0 {
-        set trg to min(RscTrgsUP[0],RscTrgsUP[1]). 
-        if trg = 0 set trg to RscTrgsUP[1]. 
-        TriggerAuto(AutoitemLst[6][1],6,trg,1,2).
-      }
-      if  checkautotrigger(RscTrgsDN) <> 0 {
-        set trg to max(RscTrgsDN[0],RscTrgsDN[1]). 
-        if trg = 0 set trg to RscTrgsDN[0]. 
-        TriggerAuto(AutoitemLst[6][2],6,trg,2,2).
-      }
+      if  checkautotrigger(RscTrgsUP) <> 0{set trg to min(RscTrgsUP[0],RscTrgsUP[1]).       if trg = 0 set trg to RscTrgsUP[1]. TriggerAuto(AutoitemLst[6][1],6,trg,1,2).}
+      if  checkautotrigger(RscTrgsDN) <> 0{set trg to max(RscTrgsDN[0],RscTrgsDN[1]).       if trg = 0 set trg to RscTrgsDN[0]. TriggerAuto(AutoitemLst[6][2],6,trg,2,2).}
       //check auto throttle.
-      if  checkautotrigger(ThrtTrgsUP) <> 0 {
-        set trg to min(ThrtTrgsUP[0],ThrtTrgsUP[1]). 
-        if trg = 0 set trg to ThrtTrgsUP[1]. 
-        IF THROTTLE > (TRG*.01) TriggerAuto(AutoitemLst[7][1],7,trg,1,1).
-      }
-      if  checkautotrigger(ThrtTrgsDN) <> 0 {
-        set trg to max(ThrtTrgsDN[0],ThrtTrgsDN[1]). 
-        if trg = 0 set trg to ThrtTrgsDN[0]. 
-        IF THROTTLE < (TRG*.01) TriggerAuto(AutoitemLst[7][2],7,trg,2,1).
-      }
+      if  checkautotrigger(ThrtTrgsUP) <>0 {set trg to min(ThrtTrgsUP[0],ThrtTrgsUP[1]).    if trg = 0 set trg to ThrtTrgsUP[1]. IF THROTTLE > (TRG*.01) TriggerAuto(AutoitemLst[7][1],7,trg,1,1).}
+      if  checkautotrigger(ThrtTrgsDN) <>0 {set trg to max(ThrtTrgsDN[0],ThrtTrgsDN[1]).    if trg = 0 set trg to ThrtTrgsDN[0]. IF THROTTLE < (TRG*.01) TriggerAuto(AutoitemLst[7][2],7,trg,2,1).}
       //check auto Pressure.
       if senselist[3] = 1{
-        if  checkautotrigger(PresTrgsUP) <> 0 {
-          set trg to min(PresTrgsUP[0],PresTrgsUP[1]). 
-          if trg = 0 set trg to PresTrgsUP[1]. 
-          IF SHIP:SENSORS:PRES > TRG TriggerAuto(AutoitemLst[8][1],8,trg,1,1).
-        }
-        if  checkautotrigger(PresTrgsDN) <> 0 {
-          set trg to max(PresTrgsDN[0],PresTrgsDN[1]). 
-          if trg = 0 set trg to PresTrgsDN[0]. 
-          IF SHIP:SENSORS:PRES < TRG TriggerAuto(AutoitemLst[8][2],8,trg,2,1).
-        }
+        if  checkautotrigger(PresTrgsUP) <> 0 {set trg to min(PresTrgsUP[0],PresTrgsUP[1]). if trg = 0 set trg to PresTrgsUP[1]. IF SHIP:SENSORS:PRES > TRG TriggerAuto(AutoitemLst[8][1],8,trg,1,1).  }
+        if  checkautotrigger(PresTrgsDN) <> 0 {set trg to max(PresTrgsDN[0],PresTrgsDN[1]). if trg = 0 set trg to PresTrgsDN[0]. IF SHIP:SENSORS:PRES < TRG TriggerAuto(AutoitemLst[8][2],8,trg,2,1).  }
       }
       //check auto Sun.
       if senselist[2] = 1{
-        if  checkautotrigger(SunTrgsUP) <> 0 {
-          set trg to min(SunTrgsUP[0],SunTrgsUP[1]). 
-          if trg = 0 set trg to SunTrgsUP[1]. 
-          IF SHIP:SENSORS:LIGHT > (TRG*.01) TriggerAuto(AutoitemLst[9][1],9,TRG,1,1).
-        }
-        if  checkautotrigger(SunTrgsDN) <> 0 {
-          set trg to max(SunTrgsDN[0],SunTrgsDN[1]). 
-          if trg = 0 set trg to SunTrgsDN[0]. 
-          IF SHIP:SENSORS:LIGHT < (TRG*.01) TriggerAuto(AutoitemLst[9][2],9,TRG,2,1).
-        }
+        if  checkautotrigger(SunTrgsUP) <> 0 {set trg to min(SunTrgsUP[0],SunTrgsUP[1]).    if trg = 0 set trg to SunTrgsUP[1].  IF SHIP:SENSORS:LIGHT > (TRG*.01) TriggerAuto(AutoitemLst[9][1],9,TRG,1,1).  }
+        if  checkautotrigger(SunTrgsDN) <> 0 {set trg to max(SunTrgsDN[0],SunTrgsDN[1]).    if trg = 0 set trg to SunTrgsDN[0].  IF SHIP:SENSORS:LIGHT < (TRG*.01) TriggerAuto(AutoitemLst[9][2],9,TRG,2,1).  }
       }
       //check auto Temp.
       if senselist[4] = 1{
-        if checkautotrigger(TempTrgsUP) <> 0 {
-          set trg to min(TempTrgsUP[0],TempTrgsUP[1]). 
-          if trg = 0 set trg to TempTrgsUP[1]. 
-          IF SHIP:SENSORS:TEMP > TRG TriggerAuto(AutoitemLst[10][1],10,trg,1,1).
-        }
-        if checkautotrigger(TempTrgsDN) <> 0 {
-          set trg to max(TempTrgsDN[0],TempTrgsDN[1]). 
-          if trg = 0 set trg to TempTrgsDN[0]. 
-          IF SHIP:SENSORS:TEMP < TRG TriggerAuto(AutoitemLst[10][2],10,trg,2,1).
-        }
+        if checkautotrigger(TempTrgsUP) <> 0 {set trg to min(TempTrgsUP[0],TempTrgsUP[1]).  if trg = 0 set trg to TempTrgsUP[1]. IF SHIP:SENSORS:TEMP > TRG TriggerAuto(AutoitemLst[10][1],10,trg,1,1).}
+        if checkautotrigger(TempTrgsDN) <> 0 {set trg to max(TempTrgsDN[0],TempTrgsDN[1]).  if trg = 0 set trg to TempTrgsDN[0]. IF SHIP:SENSORS:TEMP < TRG TriggerAuto(AutoitemLst[10][2],10,trg,2,1).}
       }
       //check auto Grav.
       if senselist[1] = 1{
-        if checkautotrigger(GravTrgsUP) <> 0 {
-          set trg to min(GravTrgsUP[0],GravTrgsUP[1]). 
-          if trg = 0 set trg to GravTrgsUP[1]. 
-          IF round(ship:sensors:grav:mag,1) > (TRG*.01) TriggerAuto(AutoitemLst[11][1],11,TRG,1,1).
-        }
-        if checkautotrigger(GravTrgsDN) <> 0 {
-          set trg to max(GravTrgsDN[0],GravTrgsDN[1]). 
-          if trg = 0 set trg to GravTrgsDN[0]. 
-          IF round(ship:sensors:grav:mag,1) < (TRG*.01) TriggerAuto(AutoitemLst[11][2],11,TRG,2,1).
-        }
+        if checkautotrigger(GravTrgsUP) <> 0 {set trg to min(GravTrgsUP[0],GravTrgsUP[1]).  if trg = 0 set trg to GravTrgsUP[1]. IF round(ship:sensors:grav:mag,1) > (TRG*.01) TriggerAuto(AutoitemLst[11][1],11,TRG,1,1).}
+        if checkautotrigger(GravTrgsDN) <> 0 {set trg to max(GravTrgsDN[0],GravTrgsDN[1]).  if trg = 0 set trg to GravTrgsDN[0]. IF round(ship:sensors:grav:mag,1) < (TRG*.01) TriggerAuto(AutoitemLst[11][2],11,TRG,2,1).}
       }
       //check auto ACC.
       if senselist[0] = 1{
-        if checkautotrigger(ACCTrgsUP) <> 0 {
-          set trg to min(ACCTrgsUP[0],ACCTrgsUP[1]). 
-          if trg = 0 set trg to ACCTrgsUP[1]. 
-          IF round(ship:sensors:acc:mag,1) > (TRG*.01) TriggerAuto(AutoitemLst[12][1],12,TRG,1,1).
-        }
-        if checkautotrigger(ACCTrgsDN) <> 0 {
-          set trg to max(ACCTrgsDN[0],ACCTrgsDN[1]). 
-          if trg = 0 set trg to ACCTrgsDN[0]. 
-          IF round(ship:sensors:acc:mag,1) < (TRG*.01) TriggerAuto(AutoitemLst[12][2],12,TRG,2,1).
-        }
+        if checkautotrigger(ACCTrgsUP) <> 0  {set trg to min(ACCTrgsUP[0],ACCTrgsUP[1]).    if trg = 0 set trg to ACCTrgsUP[1].  IF round(ship:sensors:acc:mag,1) > (TRG*.01) TriggerAuto(AutoitemLst[12][1],12,TRG,1,1).}
+        if checkautotrigger(ACCTrgsDN) <> 0  {set trg to max(ACCTrgsDN[0],ACCTrgsDN[1]).    if trg = 0 set trg to ACCTrgsDN[0].  IF round(ship:sensors:acc:mag,1) < (TRG*.01) TriggerAuto(AutoitemLst[12][2],12,TRG,2,1).}
       }
       //check auto TWR.
-        if checkautotrigger(TWRTrgsUP) <> 0 {
-          set trg to min(TWRTrgsUP[0],TWRTrgsUP[1]). 
-          if trg = 0 set trg to TWRTrgsUP[1]. 
-          IF twr > (TRG*.01) TriggerAuto(AutoitemLst[13][1],13,TRG,1,1).
-        }
-        if checkautotrigger(TWRTrgsDN) <> 0 {
-          set trg to max(TWRTrgsDN[0],TWRTrgsDN[1]). 
-          if trg = 0 set trg to TWRTrgsDN[0]. 
-          IF twr < (TRG*.01) TriggerAuto(AutoitemLst[13][2],13,TRG,2,1).
-        }
+        if checkautotrigger(TWRTrgsUP) <> 0  {set trg to min(TWRTrgsUP[0],TWRTrgsUP[1]).    if trg = 0 set trg to TWRTrgsUP[1].  IF twr > (TRG*.01) TriggerAuto(AutoitemLst[13][1],13,TRG,1,1).}
+        if checkautotrigger(TWRTrgsDN) <> 0  {set trg to max(TWRTrgsDN[0],TWRTrgsDN[1]).    if trg = 0 set trg to TWRTrgsDN[0].  IF twr < (TRG*.01) TriggerAuto(AutoitemLst[13][2],13,TRG,2,1).}
       //check auto Status. 
-
         if SHIP:status <> ShipStatPREV2  OR MAX(StsTrgsUP[0],StsTrgsUP[1])>8{
-          if checkautotrigger(StsTrgsUP) <> 0 {
-            set trg to min(StsTrgsUP[0],StsTrgsUP[1]).
-            if trg = 0 set trg to StsTrgsUP[1].
-            if AutoitemLst[14][1]:length > 1 {IF StsTrgs:contains(statusopts:find(ship:status)) OR MAX(StsTrgsUP[0],StsTrgsUP[1])>8{TriggerAuto(AutoitemLst[14][1],14,TRG,1,3).}else{set ShipStatPREV2 to SHIP:status.}}
+          if checkautotrigger(StsTrgsUP) <> 0 {set trg to min(StsTrgsUP[0],StsTrgsUP[1]).
+            if trg = 0 set trg to StsTrgsUP[1].  if AutoitemLst[14][1]:length > 1 {
+              IF StsTrgs:contains(statusopts:find(ship:status)) OR MAX(StsTrgsUP[0],StsTrgsUP[1])>8{
+                TriggerAuto(AutoitemLst[14][1],14,TRG,1,3).
+              } else{set ShipStatPREV2 to SHIP:status.}
+            }
           }
-          //if checkautotrigger(StsTrgsDN) <> 0 { 
-          //  set trg to max(StsTrgsDN[0],StsTrgsDN[1]). 
-          //  if trg = 0 set trg to StsTrgsDN[0]. 
-          //  if AutoitemLst[14][2]:length > 1 and AutoitemLst[14][2]:contains(statusopts:find(ship:status)){TriggerAuto(AutoitemLst[14][2],14,TRG,2,3).}else{set ShipStatPREV2 to SHIP:status.}
-          //}
         }
       //check Auto fuel 
-      if dcptag <> 0 {if checkautotrigger(FuelTrgsDN) <> 0 OR checkautotrigger(FuelTrgsUP) <> 0 CheckDcpFuel().}  
-    
+      if dcptag <> 0 {if checkautotrigger(FuelTrgsDN) <> 0 OR checkautotrigger(FuelTrgsUP) <> 0 CheckDcpFuel().}
+      set AgState to list(AG1,ag2,ag3,ag4,ag5,ag6,ag7,ag8,ag9,ag10).
+      if AgState <> AgSPrev CheckAGs().
     } //#endregion
       }
       //#region refresh 
@@ -5755,7 +5946,6 @@ function HudFuction{
     }
     //clearscreen.
 	}
-
 }
 function logauto{
   LOCAL parameter OPT IS 0.
@@ -5764,7 +5954,6 @@ function logauto{
   local at to "".
   local ar to "".
   local MD to "".
-
   IF OPT = 1{
     SET av to " SET TO "+AUTOHUD[0].
     set at to " SET TO "+AutoSetAct.
@@ -5772,6 +5961,7 @@ function logauto{
     set DL TO " SET TO "+ setdelay.
     set MD to " SET TO "+abs(AutoSetMode).
   }
+  LOCAL RSCSL to safekey(RscNum,autoRscList[hsel[2][1]][hsel[2][2]]).
   log2file("    AutoValList[hsel[2][1]][hsel[2][2]](TRG VALUE  ):"+AutoValList[hsel[2][1]][hsel[2][2]]+AV).
   log2file("    AutoTRGList[hsel[2][1]][hsel[2][2]](ACTION     ):"+AutoTRGList[hsel[2][1]][hsel[2][2]]+" - "+actnlist[AutoTRGList[hsel[2][1]][hsel[2][2]]]+AT).
   log2file("    autoRstList[hsel[2][1]][hsel[2][2]](RESET MODE ):"+autoRstList[hsel[2][1]][hsel[2][2]]+" - "+HudRstMdLst[autoRstList[hsel[2][1]][hsel[2][2]]]+AR).
@@ -5779,10 +5969,10 @@ function logauto{
   log2file("    AutoTRGList[0][hsel[2][1]][hsel[2][2]](DELAY   ):"+AutoTRGList[0][hsel[2][1]][hsel[2][2]]+dl).
   if AutoDspList[0][hsel[2][1]][hsel[2][2]][0] <> 0 log2file("    AutoDspList[0][hsel[2][1]][hsel[2][2]][0](WAIT4):"+AutoDspList[0][hsel[2][1]][hsel[2][2]][0]).
   if AutoDspList[hsel[2][1]][hsel[2][2]] = 6 {
-    log2file("    autoRscList[hsel[2][1]][hsel[2][2]](RSC SEL    ):"+autoRscList[hsel[2][1]][hsel[2][2]]+" - "+RscList[autoRscList[hsel[2][1]][hsel[2][2]]][0]).
+    log2file("    autoRscList[hsel[2][1]][hsel[2][2]](RSC SEL    ):"+autoRscList[hsel[2][1]][hsel[2][2]]+" - "+RscList[RSCSL][0]).
   }
   if AutoDspList[hsel[2][1]][hsel[2][2]] = 15 AND PRscList:LENGTH > 0{
-    log2file("    autoRscList[hsel[2][1]][hsel[2][2]](RSC SEL    ):"+autoRscList[hsel[2][1]][hsel[2][2]]+" - "+PRscList[autoRscList[hsel[2][1]][hsel[2][2]]][0]).
+    log2file("    autoRscList[hsel[2][1]][hsel[2][2]](RSC SEL    ):"+autoRscList[hsel[2][1]][hsel[2][2]]+" - "+PRscList[RSCSL][0]).
   }
   if AutoDspList[hsel[2][1]][hsel[2][2]] < 0 and AutoDspList[0][hsel[2][1]][hsel[2][2]][0]:tostring <> "0"{
     if HDItm <> HDItmB or HDTag <> HDTagB {
@@ -5873,7 +6063,6 @@ function AP{// if up 2 fast not turning dn
         }
     }
 //#endregion
-
 //#region string ops
 function clearall{
   PRINTLINE("",0,15).  PRINTLINE("",0,16).  PRINTLINE().
@@ -5946,12 +6135,12 @@ if line <> 14 PRINT BIGEMPTY2 AT (1,line). else PRINT BIGEMPTY AT (1,line).
 if word <> "" {
   if colorprint > 0 and cl <> 0 set word to getcolor(word,cl).
   PRINT WORD AT (1,line).}
-  if dbglog > 2 {if word <> "" log2file("   PRINTLINE:"+WORD+" AT("+line+")"). else log2file("   CLEARLINE:("++line+")").}
+  if dbglog > 1 {if word <> "" log2file("   PRINTLINE:"+WORD+" AT("+line+")"). else log2file("   CLEARLINE:("++line+")").}
 }
 function makehud{
-  local parameter word.
-  until word:length>9{set word to " "+word+" ".}
-  if word:length>9 set word to word:substring(0,10).
+  local parameter word, lim is 9.
+  until word:length>lim{set word to " "+word+" ".}
+  if word:length>lim set word to word:substring(0,lim+1).
   return word.
 }
 FUNCTION RemoveLetters{
@@ -5983,7 +6172,6 @@ function glt{
   if n1 < n2 return "v".
   return " ".
 }
-
 
 FUNCTION LISTTOSTRING{
   LOCAL parameter LSTIN.
@@ -6023,7 +6211,7 @@ local parameter Inum, tagnum, optn is 1, row IS 1, rnd is 0.
   local optn1 to optn*3-2.
   local ans to "        ".
   local p to PRTLIST[inum][tagnum][1].
-  IF dbglog > 2 {
+  IF dbglog > 1 {
     log2file("GETSTATUS-"+itemlist[Inum]+":"+prtTagList[Inum][tagnum]+":"+optn1+" row:"+row+" rnd:"+rnd).
     log2file("     MODULE1:"+LISTTOSTRING(MDL[optn1])+" MODULE2:"+LISTTOSTRING(MDL2[optn1])+" FIELD:"+LISTTOSTRING(MDL3[optn1])).
     }
@@ -6041,8 +6229,9 @@ local parameter Inum, tagnum, optn is 1, row IS 1, rnd is 0.
       }
         IF ANS <> "        "{
         if rnd > 0 set ans to round(ans, rnd).
-        IF dbglog > 2 log2file("    "+" ANS:"+ans).
+        IF dbglog > 1 log2file("    "+" ANS:"+ans).
         if rnd = -1  return ans.
+        if rnd = -10  return round(ans, 0).
         if rnd = -2  return round(ans, 2).
         }
         
@@ -6100,8 +6289,10 @@ function GetActions{
       local evmin to evac.
       local evmax to evac.
       local p to "".
+      local prtid to 1.
       if evac = 3 {set evmin to 1. set evmax to 2.}
-      if inum = 0 set p to tnum. else set p to PrtList[inum][tnum][1].
+      for i in range (0,PrtList[inum][tnum][0]) {if not BadPart(PrtList[inum][tnum][i+1], prttaglist[inum][tnum]) {set prtid to i+1. break.}}
+      if inum = 0 set p to tnum. else set p to PrtList[inum][tnum][prtid].
       for e in range(evmin,evmax+1){
         if ans > 0 break.
         if e > evmax break.
@@ -6141,7 +6332,7 @@ function GetActions{
           }if ans > 0 break.
         }
       }
-      if DbgLog > 1 log2file( "       mdl:"+mdl+"-op out1:"+opout1+"-op out2:"+opout2+"-ans:"+ans+"-evac:"+evac+"-PM:"+LISTTOSTRING(PM)).
+      if DbgLog > 1 log2file( "       mdl:"+mdl+" op out1:"+opout1+" op out2:"+opout2+" ans:"+ans+" evac:"+evac+" PrtId:"+prtid+" PM:"+LISTTOSTRING(PM)).
       if opt = 1 {set modulelist[inum][optn1] to mdl. set modulelist[inum][optn2] to opout1. set modulelist[inum][optn3] to opout2. return ans.}
       if opt = 2 or opt = "Actions"{return list(mdl,opout1,opout2,ans,evac).}
       if opt = 3 or opt = "Modules" return PM.
@@ -6149,11 +6340,14 @@ function GetActions{
       if opt = 5 {set modulelist[inum][optn1] to mdl. set modulelist[inum][optn2] to opout1. set modulelist[inum][optn3] to opout2. return list(mdl,opout1,opout2,ans,evac).}
    }
 function getEvAct{
-  local parameter p,m,ev, mode, val is 0..
+  local parameter p,m,ev, mode, val is 0.
+  if BadPart(p) return false.
   local ans to "".
   local tname to "".
-  if dbglog > 1 log2file("          GETEVACT:"+mode+" PART:"+p+" MODULE:"+m+" EVENT:"+EV).
-  if not p:hasmodule(m) {set ans to false. if dbglog > 1 log2file("           NO MODULE:"+m).}else{
+  local dbt to 1.
+  if mode <> 40 and val <> 0  set dbt to val.
+  if dbglog > dbt log2file("          GETEVACT:"+mode+" PART:"+p+" MODULE:"+m+" EVENT:"+EV).
+  if not p:hasmodule(m) {set ans to false. if dbglog > dbt log2file("           NO MODULE:"+m).}else{
   local pm to p:getmodule(m).
   if mode = 1  {set ans to pm:hasevent(ev). set tname to "hasevent:"+EV.}else{
   if mode = 2  {set ans to pm:hasaction(ev).set tname to "hasaction:"+EV.}else{
@@ -6164,8 +6358,13 @@ function getEvAct{
   if mode = 30 {if  pm:hasfield(ev){set ans to pm:GETFIELD(ev).}set tname to "getfield:"+EV.}else{
   if mode = 40 {if  pm:hasfield(ev){pm:SETFIELD(ev,val).}set tname to "setfield:"+EV+" TO:"+val.}
   }}}}}}}}
-  if dbglog > 1 log2file("                "+tname+" ANS:"+ans).
+  if dbglog > dbt log2file("                "+tname+" ANS:"+ans).
   return ans.
+}
+function CheckTrue{
+    local parameter md, pt, MDL, FLD, ValTrue, ValFalse, vx is 0.
+    if getEvAct(pt,MDL,FLD,md,vx)  = False set ans to ValFalse. else set ans to ValTrue.
+    return ans.
 }
 function checkDcp{
 local parameter Prt, Word.
@@ -6209,6 +6408,7 @@ Function GetRange{
     if opt = 1 return ans.
     if opt = 2 return list(comp*(1-(percent/100)), comp*(1+(percent/100))).
 }
+
 //#endregion
 //#region file ops
 function sendboot{
@@ -6236,6 +6436,16 @@ function SaveAutoSettings{
   if defined (HSel) set AutoDspList[0][0][0] to hsel[2][1]. else set  AutoDspList[0][0][0] to 1.
   if defined (hsel) set AutoDspList[0][0][1] to hsel[2][2]. else set  AutoDspList[0][0][1] to 1.
   if loadattempts = -1 and autovallist[0][0][0] > 1001 set autovallist[0][0][0] to 1001.
+  if debug > 2 {
+    log2file(LISTTOSTRING("AutoDspList:"+AutoDspList)).
+    log2file(LISTTOSTRING("autovallist:"+autovallist)).
+    log2file(LISTTOSTRING("itemlist:"+itemlist)).
+    log2file(LISTTOSTRING("prttaglist:"+prttaglist)).
+    log2file(LISTTOSTRING("prtlist:"+prtlist)).
+    log2file(LISTTOSTRING("autoRstList:"+autoRstList)).
+    log2file(LISTTOSTRING("AutoRscList:"+AutoRscList)).
+    log2file(LISTTOSTRING("AutoTRGList:"+AutoTRGList)).
+  }
   local listout to list(AutoDspList, autovallist,itemlist,prttaglist, prtlist, autoRstList, AutoRscList ,AutoTRGList, MONITORID).
   if op = 1 WRITEJSON(listout, SubDirSV + autofile).
   if op = 2 WRITEJSON(listout, SubDirSV + AutofileBAK).
@@ -6290,7 +6500,6 @@ function file_exists{
       local found is false.
       list files in fileList.
       for file in fileList {if file = fileName set found to true.}
-      //cd(proot).
       if dbglog > 0 log2file("    FILE EXIST?: "+fileName + ": "+found).
     return found.
   }
@@ -6299,47 +6508,54 @@ function partcheck{
   local loadp to 27. if colorprint > 0{ set loadp to loadp+9. PRINT " " AT (80,LNstp-1).}
   local parameter opt is 1.
   LOCAL GR TO 0. 
-  if alltagged:length <> ship:ALLTAGGEDPARTS():length {fixpl(). set gr to 1.}
-  set  PrtListcur to SetPartList(ship:ALLTAGGEDPARTS()).
- // print break(f).
-     if DbgLog > 0 log2file("PARTCHECK:"+opt ).
+   set checktime to time:seconds.
+   if CheckPartLists() = 1 set gr to 1. ELSE set  PrtListcur to SetPartList(ship:ALLTAGGEDPARTS(),1).
+     if DbgLog > 0 log2file("PARTCHECK:"+opt).
       for i in range (1,itemlist[0]+1){
+        local ItemName to ITEMLIST[I]:tostring..
         local cnt1 to 0.
-        IF I = itemlist[0]+1 BREAK.
+        //IF I = itemlist[0]+1 BREAK.
+        if DbgLog > 2 log2file("    Item:"+I ).
        if opt > 1 { set loadp to loadp+1. print "." at (loadp,LNstp-1).}
         for t in range (1,prtTAGList[I][0]+1){
             IF OPT = 1 IF I = FLYTAG OR I = AGTAG BREAK.
-          IF t = prtTAGList[I][0]+1 BREAK.
+            local TgName to PRTTAGLIST[I][T]:tostring.
+          //IF t = prtTAGList[I][0]+1 BREAK.
           set cnt to 0.
+          if DbgLog > 2 log2file("        Tag:"+T ).
           for p in range (1,prtList[I][T][0]+1){
+            if badpart(prtList[I][T][P], prtTagList[i][t]) set prtList[I][T][P] to core:part.
+            LOCAL ChkPart to prtList[I][T][P]:tostring.
+            if DbgLog > 2 log2file("          Part:"+P ).
             if prtList[I][T]:length < p+1 prtList[I][T]:add(CORE:PART).
-            IF p = prtList[I][T][0]+1 BREAK.
-            if alltagged:length <> ship:ALLTAGGEDPARTS():length {fixpl(). set gr to 1.}
+            //IF p = prtList[I][T][0]+1 BREAK.
             local validpart to 1.
             if i <> agtag and i <> flyTag {
               if prtList[I][T][P]:typename = "String" {set validpart to 0. 
-                if DbgLog > 0 and not lostparts:contains(prtList[I][T][P]:tostring+"-"+CNT) {log2file("        "+ITEMLIST[I]+":"+PRTTAGLIST[I][T]+" REMOVED - IS STRING" ). 
-                lostparts:add(prtList[I][T][P]:tostring+"-"+CNT).}
+                if DbgLog > 0 and not lostparts:contains(ChkPart+"-"+CNT) {log2file("        "+ItemName+":"+TgName+" REMOVED - IS STRING" ). 
+                lostparts:add(ChkPart+"-"+CNT).}
               }else{
               IF prtList[I][T][P]:TAG = ""{set validpart to 0.
                 set prtList[I][T][P] to CORE:PART.
-                if DbgLog > 0 and not lostparts:contains(prtList[I][T][P]:tostring+"-"+CNT) log2file("       "+ITEMLIST[I]+":"+PRTTAGLIST[I][T]+" REMOVED - PART GONE" ).
-                lostparts:add(prtList[I][T][P]:tostring+"-"+CNT).
+                if DbgLog > 0 and not lostparts:contains(ChkPart+"-"+CNT) log2file("       "+ItemName+":"+TgName+" REMOVED - PART GONE" ).
+                lostparts:add(ChkPart+"-"+CNT).
               }ELSE{
-              if prtList[I][T][P] = core:part {
-                if not prtList[I][T][P]:tostring:contains("tag="+prttaglist[I][T]:tostring) {set validpart to 0.
-                  if DbgLog > 0 and not lostparts:contains(prtList[I][T][P]:tostring+"-"+CNT) log2file("        "+ITEMLIST[I]+":"+PRTTAGLIST[I][T]+" REMOVED - NOT FOUND" ) .
-                  lostparts:add(prtList[I][T][P]:tostring+"-"+CNT).
+              if ChkPart = core:part:tostring {
+                if not ChkPart:contains("tag="+TgName) {set validpart to 0.
+                  if DbgLog > 0 and not lostparts:contains(ChkPart+"-"+CNT) log2file("        "+ItemName+":"+TgName+" REMOVED - NOT FOUND" ) .
+                  lostparts:add(ChkPart+"-"+CNT).
                   }
                 }
               }}}
-            if DbgLog > 1  log2file("   "+ITEMLIST[i]+"("+i+")"+PRTTAGLIST[i][t]+"("+t+")"+PRTLIST[i][t][p]+"("+p+")-"+validpart ).
-            if validpart = 1 and PrtListcur:tostring:contains(prtList[I][T][P]:tostring){
+            if DbgLog > 1 {log2file("   "+ItemName+"("+i+")"+TgName+"("+t+")"+PRTLIST[i][t][p]+"("+p+")-"+validpart ).}
+            if CheckPartLists() = 1 set gr to 1.
+            IF prtList[I][T][P]:TAG = "" {set prtList[I][T][P] to CORE:PART. set ChkPart to CORE:PART. set gr to 1. set validpart to 0.}
+            if validpart = 1 and ship:alltaggedparts():tostring:contains(ChkPart){
               set cnt1 to 1.
               if opt > 1 {
-                if t > autoTRGList[0][I]:length-1 log2file(i+"-"+t+"-"+p).
+                if t > autoTRGList[0][I]:length-1 and DbgLog > 2 log2file(i+"-"+t+"-"+p).
                 if autoTRGList[0][I][T] < 0{
-                  if DbgLog > 0 log2file("     "+ITEMLIST[i]+":"+PRTTAGLIST[i][t]+" SET TO RUN").
+                  if DbgLog > 0 log2file("     "+ItemName+":"+TgName+" SET TO RUN").
                   set AutoDspList[I][T] to abs(AutoDspList[I][T]).
                   set autoTRGList[0][I][T] to 0.
                 }
@@ -6347,12 +6563,15 @@ function partcheck{
             }
             else{
               set gr to 1.
-              if DbgLog > 0 and prtList[I][T][P]:tostring <> CORE:PART:tostring.{
-                  if not lostparts:contains(prtList[I][T][P]:tostring+"-"+CNT) and validpart = 1{
-                    set validpart to 0.
-                    log2file("        "+ITEMLIST[I]+":"+PRTTAGLIST[I][T]+" REMOVED - NO TAG ="+prttaglist[I][T]:tostring ).
-                    lostparts:add(prtList[I][T][P]:tostring+"-"+CNT).
-                  }
+              IF prtList[I][T][P]:TAG = "" {set prtList[I][T][P] to CORE:PART.}
+              ELSE{
+                if ChkPart <> CORE:PART:tostring.{
+                    if not lostparts:contains(ChkPart+"-"+CNT) and validpart = 1{
+                      set validpart to 0.
+                      if DbgLog > 0  log2file("        "+ItemName+":"+TgName+" REMOVED - NO TAG ="+TgName:tostring ).
+                      lostparts:add(prtList[I][T][P]:tostring+"-"+CNT).
+                    }
+                }
               }
               set cnt to cnt+1.
               set prtList[I][T][P] to CORE:PART.
@@ -6363,18 +6582,21 @@ function partcheck{
             SET PCNT TO PCNT-1.
             if cnt > PCNT and autoTRGList[0][I][T] > -1{
               set gr to 1.
-              if DbgLog > 0 log2file("          TAG:"+ITEMLIST[i]+":"+PRTTAGLIST[i][t]+" SET TO SKIP").
+              if DbgLog > 0 log2file("          TAG:"+ItemName+":"+TgName+" SET TO SKIP").
               set autoTRGList[0][I][T] to 0-abs(AutoDspList[I][T])-1.
               set AutoDspList[I][T] to 0-abs(AutoDspList[I][T]).
             }
           }
-          //SET CA TO AutoDspList[I][T].
       }
       if i = agtag OR i = flyTag SET CNT1 TO 1.
       if cnt1 = 0 and AutoRscList[0][I] <> 2{
-         if DbgLog > 0 log2file("           ITEM:"+ITEMLIST[i]+" SET TO SKIP").
-        SET AutoRscList[0][I] to 2.
-        //ClearAuto(i,t,opt,CA).
+         if DbgLog > 0 log2file("           ITEM:"+ItemName+" SET TO SKIP").
+        SET AutoRscList[0][I] to 0.
+        }
+
+      if opt > 1 and cnt1 = 1 and AutoRscList[0][I] = 0 {
+         if DbgLog > 0 log2file("           ITEM:"+ItemName+" SET TO RUN").
+        SET AutoRscList[0][I] to 1.
         }
     }
     if gr=1 {
@@ -6399,9 +6621,35 @@ IF dbglog > 0 log2file("ADDLIST****************").
   if AutoValList[0][0]:length = 4 AutoValList[0][0]:add(LIST(refreshRateSlow,refreshRateFast,debug,dbglog,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0)).
   return.
 }
+Function CheckPartLists{
+  local pf to 0.
+  if alltagged:length <> ship:ALLTAGGEDPARTS():length {
+  fixpl(). 
+  set pf to 1.
+  if dbglog > 0 log2file("    ALLTAGGED list off - FIXING").
+  }
+  return pf.
+}
 function fixpl{
-  set PrtListcur to SetPartList(ship:ALLTAGGEDPARTS()). 
+  if DbgLog > 2 log2file("       FIXPL" ).
+  set PrtListcur to SetPartList(ship:ALLTAGGEDPARTS(),1). 
   set alltagged to ship:ALLTAGGEDPARTS(). 
+}
+function CheckAttached{
+  local parameter lin1.
+  if not (defined prtlistcur) return lin1.
+  //if DbgLog > 2 log2file("       CHECKATTACHED"+listtostring(lin1)).
+  for check in range (0,lin1:length) {
+    IF lin1[check]:hassuffix("tag"){if lin1[check]:TAG = "" SET lin1[check] TO CORE:PART.} else SET lin1[check] TO CORE:PART.
+    IF lin1[check]:hassuffix("ALLTAGGEDPARTS"){IF lin1[check]:ALLTAGGEDPARTS:LENGTH < 1 SET lin1[check] TO CORE:PART.} else SET lin1[check] TO CORE:PART.
+  }
+  return lin1.
+}
+function BadPart{
+  local parameter Pin, TagTarg is "".
+  IF Pin:hassuffix("tag"){if tagtarg <> "" {if pin:tag <> tagTarg return True.}if Pin:TAG = "" Return True.}else Return True.
+  IF Pin:hassuffix("ALLTAGGEDPARTS"){IF Pin:ALLTAGGEDPARTS:LENGTH < 1 Return True.} else Return True.
+  return False.
 }
 //#endregion
 //#region Borrowed 
