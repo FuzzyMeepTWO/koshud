@@ -1,6 +1,6 @@
 global boottime to time:seconds.
 global debug to 0. // shows input and output for triggered item. use for checking which modules are called for failed trigger. logging is better.
-global dbglog to 3. // 0 = OFF 1 = LOG  2= Detailed Log 3 = advanced LOG WITH METER/FUEL CHECK AND STARTUP SPAM (you probably dont want 3) 4, manual entry only, color logging 5, manual entry only, skips logging for start
+global dbglog to 0. // 0 = OFF 1 = LOG  2= Detailed Log 3 = advanced LOG WITH METER/FUEL CHECK AND STARTUP SPAM (you probably dont want 3) 4, manual entry only, color logging 5, manual entry only, skips logging for start
 global colorprint to 1. // fancy colors?
 Global ForceMon to -1. // set to force specific monitorif over 0, will use forcemon-1 for trg mon
 SET FASTBOOT TO 0. // REMOVES PAUSES FROM LOAD ITEMS LIST 
@@ -64,7 +64,7 @@ IF exists(DebugLog) and NOT (DEFINED mchkcnt){
     log2file("################################################################################").
     log2file("|                              KERBAL HUD SYSTEM                               |").
     log2file("|                              BY  FUZZYMEEP TWO                               |").
-    log2file("|                                VERSION 1.04                                  |").
+    log2file("|                                VERSION 1.05                                  |").
     log2file("|___________________________________LOADING____________________________________|").
     log2file("################################################################################").
  }
@@ -402,7 +402,7 @@ function desktop{
     if i = 0 or i = heightlim-1 set po to "################################################################################".
     if i = 8           set po to "|                              KERBAL HUD SYSTEM                               |".
     if i = 9           set po to "|                              BY  FUZZYMEEP TWO                               |".
-    if i = 10          set po to "|                                VERSION 1.04                                  |".
+    if i = 10          set po to "|                                VERSION 1.05                                  |".
     if i = 15          set po to "|___________________________________LOADING____________________________________|".
     print po at (0,i).
 }}
